@@ -1,0 +1,25 @@
+# --- Python ---
+backend/.venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# --- Node ---
+frontend/node_modules/
+frontend/dist/
+npm-debug.log*
+
+# --- Secrets: never commit the local database credential ---
+*.env
+credentials/
+secrets.json
+
+# --- Local scratch ---
+.tmp/
+*.log
+.DS_Store
+
+# NOTE: data/raw/ and data/derived/ are deliberately NOT ignored.
+# The generated fixtures are committed on purpose so the demo can be
+# reproduced (and the UI rehearsed) without re-running any generator.

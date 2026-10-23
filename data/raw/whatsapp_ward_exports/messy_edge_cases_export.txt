@@ -1,0 +1,20 @@
+This is a deliberately awkward export used by the parser tests. Everything below
+is something a real WhatsApp export has been observed to contain.
+[14/07/25, 7:13 PM] Asha: 2-digit year and 12-hour clock with no seconds
+14/07/2025, 19:14 - Asha: dash form, same person, second message
+[15/07/2025, 07:15:00] Rohit: message that itself contains a colon: ward: 12 and time: 7am
+15/07/2025, 7:16:00 AM - Unknown Number: +91 98765 43210 joined using this group's invite link
+[16/07/2025, 08:00:00] Meera: Media omitted
+[16/07/2025, 08:00:01] Meera: <attached: 00000001-AUDIO-2025-07-16-at-8.00.01AM.opus>
+[16/07/2025, 08:01:00] Meera: multi-line complaint starts here
+the leak has been running since morning
+near the school, Ward 12 lane 3
+   (indented continuation too)
+[17/07/2025, 09:00:00] You deleted this message
+[17/07/2025, 09:01:00] Sameer: paani mein se smell aa rahi hai
+17/07/2025 09:02:00 Sameer: no comma between date and time, no dash
+[18/07/2025, 10:10:10] Fatima: trailing whitespace issue   
+[18/07/2025, 10:11:11] : sender is empty entirely
+[19/07/2025, 11:11:11] Vinay:   
+[20/07/2025, 12:00:00] Anita: bugaadi paani aa raha hai, bacchon ko ulti ho rahi hai
+Searching for messages

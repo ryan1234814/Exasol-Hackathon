@@ -1,0 +1,18 @@
+Ward No,Sampling Date,Parameter,Result (mg/L or NTU),Sampling Station,Lab Verified
+3,04/07/2025,Turbidity,7.4 NTU,Dharavi Lane 6,YES
+3,04/07/2025,Total Coliform,14 CFU/100ml,Dharavi Lane 6,YES
+3,04/07/2025,Residual Chlorine,<0.2,Dharavi Lane 6,YES
+3,05/07/2025,turbidity,9.1,Dharavi Lane 6,YES
+3,05/07/2025,pH,7.2,Dharavi Lane 6,
+4,05/07/2025,Turbidity,6.8,Govandi Node 2,NO
+4,06/07/2025,Coliform,,Govandi Node 2,YES
+4,2025-07-06,Residual Free Chlorine,0.31 mg/L,Govandi Node 2,YES
+13,06/07/2025,Turbidity,3.2,Koramangala 5th Block,YES
+13,06/07/2025,pH,8.9,Koramangala 5th Block,YES
+13,07/07/2025,e coli,26,Koramangala 5th Block,NO
+99,07/07/2025,Turbidity,4.4,Unknown ward register,YES
+3,31/02/2025,Turbidity,5.9,Dharavi Lane 6,YES
+3,08/07/2025,Conductivity,612,Dharavi Lane 6,YES
+3,08/07/2025,Turbidity,not detected,Dharavi Lane 6,YES
+9,09/07/2025,pH,6.1,Powai Inlet,NO
+9,09/07/2025,Turbidity,5.6 NTU,Powai Inlet,NO
