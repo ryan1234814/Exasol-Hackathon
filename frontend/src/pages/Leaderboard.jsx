@@ -3,7 +3,7 @@ import { Bar } from 'react-chartjs-2'
 import { useGet, fmt, riskColor } from './_shared'
 import SqlDrawer from '../components/SqlDrawer'
 
-export default function Leaderboard() {
+export default function Leaderboard({ onOpenWard }) {
   const { data, loading, error } = useGet('/leaderboard?limit=10', [])
 
   const rows = data?.rows || []
@@ -41,7 +41,7 @@ export default function Leaderboard() {
               <thead>
                 <tr>
                   <th>#</th><th>Ward</th><th>Risk</th><th>Worst param</th>
-                  <th>Z</th><th>Breach</th><th>Slope</th><th>Complaints</th><th>High</th>
+                  <th>Z</th><th>Breach</th><th>Slope</th><th>Complaints</th><th>High</th><th />
                 </tr>
               </thead>
               <tbody>
@@ -56,6 +56,11 @@ export default function Leaderboard() {
                     <td className="mono">{fmt(r.SLOPE_COMPONENT, 2)}</td>
                     <td className="mono">{r.N_COMPLAINTS}</td>
                     <td className="mono sev-high">{r.N_HIGH_SEV}</td>
+                    <td>
+                      <button className="action" onClick={() => onOpenWard && onOpenWard(r.WARD_ID)}>
+                        case file →
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

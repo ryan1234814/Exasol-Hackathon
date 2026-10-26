@@ -1,6 +1,6 @@
 # Saved demo queries
 
-Six single-statement SQL files. Each one answers a question a ward officer would
+Ten single-statement SQL files. Each one answers a question a ward officer would
 actually ask, and each one is the **same statement** the API runs behind the
 scene, so a number on screen can be proven on stage.
 
@@ -25,7 +25,11 @@ exapump sql -p starter-kit < db/sql/latest_risk.sql
 | `deteriorating_wards.sql` | Which wards are getting worse slowly? | Planted signal 4: a trend with no spike is still caught, via the 12-month OLS slope |
 | `complaint_vs_lab_disagreement.sql` | When should I doubt my own instruments? | Planted signal 5: sensor-only breaches with zero lab-confirmed breaches, side by side with citizen volume |
 | `complaint_category_mix.sql` | What are people actually saying about this ward? | The rule-engine categorisation, with one representative quote per category |
+| `forecast_eta.sql` | How long until this ward breaches its limit? | The ETA arithmetic in full — the same CASE the forecast card explains, over `V_WARD_FORECAST` |
+| `sensor_vs_lab.sql` | Which breaches are my instruments, not my water? | The `lab_confirmed` / `instrument_suspect` verdict, beside contamination complaint volume |
+| `ward_month_matrix.sql` | What does a year of this city look like at a glance? | The 600-cell month × ward matrix the heatmap and the replay slider read |
+| `morning_brief.sql` | What are the three things to do today? | The ranked ward with all four risk components and its complaint rollup — the brief's inputs |
 
-`backend/tests/test_sql_snapshots.py` runs all six against a live database and
+`backend/tests/test_sql_snapshots.py` runs all ten against a live database and
 asserts each returns rows — a query that quietly returns nothing is a broken
 demo, not a clean result.

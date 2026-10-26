@@ -4,7 +4,7 @@ import SqlDrawer from '../components/SqlDrawer'
 
 const CATS = ['', 'contamination', 'leakage', 'pressure', 'other']
 
-export default function Complaints() {
+export default function Complaints({ onOpenWard }) {
   const [category, setCategory] = useState('')
   const [q, setQ] = useState('')
   const qs = `?limit=100${category ? `&category=${category}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`
@@ -37,7 +37,7 @@ export default function Complaints() {
           <div className="scroll">
             <table>
               <thead>
-                <tr><th>Sev</th><th>Ward</th><th>Category</th><th>Received</th><th>Raw text</th><th>Conf</th><th>Rule</th></tr>
+                <tr><th>Sev</th><th>Ward</th><th>Category</th><th>Received</th><th>Raw text</th><th>Conf</th><th>Rule</th><th /></tr>
               </thead>
               <tbody>
                 {data.rows.map((r) => (
@@ -49,6 +49,11 @@ export default function Complaints() {
                     <td>{r.RAW_TEXT}</td>
                     <td className="mono">{fmt(r.CONFIDENCE, 2)}</td>
                     <td className="mono">{r.RULE_VERSION}</td>
+                    <td>
+                      <button className="action" onClick={() => onOpenWard && onOpenWard(r.WARD_ID)}>
+                        case file →
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -29,13 +29,33 @@ A municipal ward officer opens one page each morning and immediately sees which 
 
 **Status as of Oct 23:** Phase 0 is green. The database that never came up was
 redeployed at 6 GB (see [Memory And Footprint](#memory-and-footprint-measured-not-estimated))
-and is now `database_ready` on `127.0.0.1:8563`; `WARDQ` is loaded with 288,768
-sample rows, all eight analytical window views, and the Lua `RISK_SCORE` UDF,
-with every planted signal verified by live queries. The original blocker — an
-orphan `launcher __daemon__` holding the port forwarder while `bridge100` pointed
-at a dead VM address — is documented in risk R2 with the repair that worked.
+and is at that point `database_ready` on `127.0.0.1:8563`; `WARDQ` is loaded with
+288,768 sample rows, eight analytical window views plus the forecast view
+(`V_WARD_FORECAST`, added later by `db/45_forecast_view.sql`), and the Lua
+`RISK_SCORE` UDF, with every planted signal verified by live queries. The
+original blocker — an orphan `launcher __daemon__` holding the port forwarder
+while `bridge100` pointed at a dead VM address — is documented in risk R2 with the
+repair that worked.
 Because `exapump` was never installed by a raw `exasol deploy`, SQL is run with
 `scripts/run_sql.py` against the same `backend/db.py` seam the API uses.
+
+> **Status as of Oct 25:** the database is `database_ready` again on
+> `127.0.0.1:8563`. A `start` issued on Oct 24 died in the macOS Local Network
+> block (guest booted, host got `no route to host`), leaving a wedged `launcher
+> __daemon__` holding the forwarder while the CLI reported `stopped`. Restarting
+> that daemon **from Terminal.app** restored it with `data.img` intact, so every
+> table and both materializations survived. All 170 backend tests pass, including
+> the DB-backed ones that used to skip, and `/api/health` reports
+> `database: up, mock: false`. `db/45_forecast_view.sql` now applies cleanly and
+> `V_WARD_FORECAST` exists (96 rows).
+>
+> Two dialect fixes came out of executing that file for the first time: this
+> build rejects a standalone `COMMENT ON VIEW` with `0A000 Feature not
+> supported` (the comment must ride on `CREATE VIEW … COMMENT IS`), and `CURRENT`
+> is a reserved word, so `db/sql/forecast_eta.sql` had to quote it as `"CURRENT"`.
+> Note that `exakit status` still says "not installed": the runtime was brought up
+> by a raw `exasol deploy`, so the kit has no record of it. Use `exasol status`
+> as the source of truth for this deployment.
 
 ---
 
@@ -49,7 +69,7 @@ Because `exapump` was never installed by a raw `exasol deploy`, SQL is run with
 | Perf claims | Only from measured numbers; no `DISTRIBUTED BY`/`PARTITION BY` in the DDL at all | Single data node, and the Personal build does not parse those clauses (measured) |
 | Serving | FastAPI serves `frontend/dist` on one origin, one port (8000) | Deletes CORS as a failure mode entirely |
 | NLP | Pure-stdlib regex rule table (data, not code) | No spaCy/transformer downloads on a ~350 KB/s link; explainable on stage |
-| Language | Plain JS (no TypeScript), no router, no state lib | 2-day solo build |
+| Language | Plain JS (no TypeScript), hand-written hash router, no state lib | 2-day solo build; a router dependency buys nothing that ~40 lines of `hashchange` does not |
 
 ---
 
@@ -166,22 +186,37 @@ All paths relative to `/Users/ryangeorge/exasol/` (verified empty — safe to bu
 docs/           prd.md  decisions.md  data-dictionary.md  demo-script.md
 
 db/             10_schema.sql  20_seed_dims.sql  30_generate_readings.sql
-                40_anomaly_window.sql  50_udf_ward_risk.lua.sql  60_materialize.sql
-                70_verify.sql  sql/*.sql (6 saved demo queries)
+                40_anomaly_window.sql  45_forecast_view.sql
+                50_udf_ward_risk.lua.sql  60_materialize.sql
+                61_materialize_no_udf.sql  70_verify.sql
+                sql/*.sql (10 saved demo queries)
 
 data/           raw/whatsapp_ward_exports/*.txt  raw/sample_logs_demo.csv
                 derived/*.csv (fallback snapshots)  generated/README.md
 
-backend/        app.py  db.py  nlp_rules.py  ingest/whatsapp_parser.py
-                ingest/tabular.py  benchmark.py  requirements.txt  tests/
+backend/        app.py  db.py  nlp_rules.py  forecast.py  brief.py
+                ingest/whatsapp_parser.py  ingest/tabular.py
+                benchmark.py  requirements.txt  tests/
 
 frontend/       index.html  vite.config.js  src/{App.jsx,api.js,devMock.js,
-                pages/*,components/*,styles.css}
+                router.js,theme.js,chartSetup.js,
+                pages/{Landing,Dashboard,WardDossier,Trend,Anomalies,
+                Disagreements,Complaints,Leaderboard,Simulator,
+                Briefing,Ingest,BenchmarkPage}.jsx,
+                components/*,styles.css}
 
-Makefile  run_demo.sh  README.md  THIRD_PARTY_NOTICES.md  .gitignore
+scripts/        run_sql.py
+README.md  THIRD_PARTY_NOTICES.md  .gitignore
 ```
 
-Makefile targets are the **only** entry points: `bootstrap` · `gen` · `load` · `refresh` · `api` · `web` · `build` · `bench` · `demo` · `reset`.
+There is **no `Makefile` and no `run_demo.sh`** in this checkout. The three entry
+points are the ones the code actually has:
+
+| Task | Command |
+|------|---------|
+| Pipeline (any `db/NN_*.sql`) | `backend/.venv/bin/python scripts/run_sql.py db/NN_name.sql` |
+| API + built UI, one origin | `backend/.venv/bin/uvicorn backend.app:app --port 8000` |
+| UI against mock data, no DB | `npm --prefix frontend run dev:mock` |
 
 ---
 
@@ -240,6 +275,19 @@ LAG(BREACH_FLAG) OVER (PARTITION BY WARD_ID, PARAM_CODE ORDER BY SAMPLE_DATE)
 
 Plus breach-day counts vs the `PARAMETER_LIMITS` thresholds, consecutive-breach runs, and a 12-month deterioration slope (`REGR_SLOPE`, or manual covariance if unsupported — probe, don't assume). Window functions run on the daily aggregate, not the raw 289k, which is what keeps the UI sub-second on 2 vCPU.
 
+### `db/45_forecast_view.sql` — inputs for the breach forecast
+
+One `CREATE OR REPLACE VIEW`, no data written. `V_WARD_FORECAST` joins the last
+30 days of `WARD_DAILY` (mean, `STDDEV`, sample count) to the newest
+`V_WARD_PARAM_SLOPE` row and the `PARAMETER_LIMITS` thresholds — 96 rows
+(24 wards × 4 parameters), one row per ward × parameter.
+
+It deliberately returns **raw inputs only**: no ETA arithmetic in SQL. Every
+branch (rising vs falling, which bound is in play, a zero slope, coliform's
+limit of 0) lives in `backend/forecast.py`, which is unit-tested with no
+database. `db/sql/forecast_eta.sql` shows the same arithmetic as a single
+`SELECT` for the on-stage "show me the SQL" moment.
+
 ### `db/50_udf_ward_risk.lua.sql`
 
 ```sql
@@ -253,6 +301,19 @@ CREATE OR REPLACE LUA SCALAR SCRIPT WARDQ.RISK_SCORE(
 ### `db/60_materialize.sql`
 
 `TRUNCATE` + `INSERT … SELECT` from the views/UDF into `WARD_MONTH_RISK`, `ANOMALY_EVENT`, `COMPLAINT_SUMMARY`, stamping `GENERATED_AT`. `db/70_verify.sql` re-checks row counts from a fresh connection (the DB can ACK a DDL batch right after first boot without persisting it).
+
+### Pipeline order
+
+```
+10_schema → 20_seed_dims → 30_generate_readings → 40_anomaly_window
+  → 45_forecast_view → 50_udf_ward_risk → 60_materialize → 70_verify
+```
+
+`45_forecast_view.sql` depends only on `WARD_DAILY` and `V_WARD_PARAM_SLOPE`, so
+it can run before or after the UDF. `61_materialize_no_udf.sql` is the drop-in
+replacement for `60` when the Lua UDF is unavailable; `70_verify.sql` is re-run
+last either way. Each step is one file, so the whole pipeline is
+`for f in db/NN_*.sql; do backend/.venv/bin/python scripts/run_sql.py $f; done`.
 
 ---
 
@@ -274,21 +335,39 @@ pyexasol.connect(dsn="127.0.0.1:8563", user="sys",
 
 Lazy connection + one reconnect-on-stale attempt; per-query `time.monotonic()` timing. Password file path from env `EXAKIT_PASSWORD_FILE`; never hardcoded, never printed, gitignored. Fallback if pyexasol is unavailable: subprocess → `exakit sql --json` (same response shape, no TLS config).
 
-### Endpoints — reads hit materialized tables only (never the raw 300k, never a live UDF)
+### Endpoints — reads hit materialized tables or pre-aggregated views (never the raw 289k, never a live UDF)
 
 | Method · Path | Returns |
 |---------------|---------|
 | `GET /api/health` | DB reachability + `GENERATED_AT` |
 | `GET /api/wards` | ward list + latest risk score |
 | `GET /api/wards/{id}/trend?param=` | ≤500 points, server-side bucketed |
+| `GET /api/wards/{id}/forecast?param=&horizon_days=90` | breach ETA, ±band and confidence per parameter (all four when `param` is omitted) |
 | `GET /api/anomalies?month=` | flagged ward×param rows |
 | `GET /api/leaderboard` | deteriorating wards by risk |
-| `GET /api/complaints?category=&ward=&q=` | triage queue, `LIMIT`-paged |
+| `GET /api/heatmap?months=13` | ward × month risk matrix in one payload (≤600 cells) for the replay slider |
+| `GET /api/disagreements?month=&ward_id=&param=&limit=` | sensor-vs-lab agreement per ward × parameter, with a derived `VERDICT` |
+| `GET /api/brief?month=` | the three-action morning brief plus its Markdown rendering |
+| `GET /api/complaints?category=&ward_id=&q=&since=` | triage queue, `LIMIT`-paged |
 | `GET /api/summary` | header metrics + "data as of" |
+| `GET /api/sql/{step}` | the exact `db/sql/*.sql` source behind a number, whitelisted by step name |
+| `GET /api/rules` | the NLP rule table as data |
 | `POST /api/ingest/chat` | multipart `.txt` → parse + classify preview, does not write (safely re-runnable on stage) |
 | `POST /api/ingest/logs` | CSV/XLSX → staging rows + validation report |
 | `POST /api/classify` | one sentence → category + which rule fired |
 | `GET /api/benchmark` | measured timings (below) |
+
+**One documented exception** to "reads touch materialized tables only":
+`/api/disagreements` reads the pre-aggregated view `V_LAB_VS_SENSOR` directly.
+That is one 288,768-row aggregate, measured at **15 ms** on this VM
+(`data/derived/benchmark_results.csv`, `S1_scan_aggregate`/`exasol`), which is
+cheaper than maintaining a fourth summary table for a view the pipeline already
+computes. Every other endpoint reads `WARD_MONTH_RISK`, `ANOMALY_EVENT`,
+`COMPLAINT_SUMMARY`, `LOAD_RUN` or `BENCHMARK_RESULTS`.
+
+All new read endpoints add `query_ms` (the `time.monotonic()` measurement
+`backend/db.py` already records) so the UI can show the cost of the number it is
+displaying.
 
 ```python
 app.mount("/", StaticFiles(directory="frontend/dist", html=True))
@@ -335,42 +414,108 @@ Discloses the 2 vCPU / 6 GB VM sizing in `docs/` so no claim is unfair.
 npm create vite@latest frontend -- --template react
 ```
 
-Plus `chart.js`, `react-chartjs-2` only. `vite.config.js` dev proxy `/api` → `http://127.0.0.1:8000`. Plain JS, tab-switch state (no router).
+Plus `chart.js`, `react-chartjs-2` only — no router package, no state library, no vitest. `vite.config.js` dev proxy `/api` → `http://127.0.0.1:8000`. Plain JS.
+
+### Routing (`src/router.js`, ~60 lines)
+
+The URL is the state: `#/dashboard`, `#/trend`, `#/ward/12` … An empty hash means
+the landing page, which is how the "landing renders with the DB down" invariant
+survives — it still makes zero API calls. Unknown tab → `dashboard`. Unknown ward
+id → the ward selector on the case file. `readRoute()` / `routeHash()` / `navigate()`
+plus one `hashchange` listener is the whole router; nothing new is downloaded and
+the back button works.
+
+`src/theme.js` toggles `:root[data-theme]`, persisting to `localStorage` inside a
+`try/catch` so private-mode browsers still render. `Ctrl/Cmd-K` opens
+`components/CommandPalette.jsx`: 11 tabs plus a lazily-fetched ward list, arrow
+keys and Enter, no dependency.
+
+### Landing page (`Landing.jsx`)
+
+The first screen a judge sees. Pure CSS animations, zero API calls, zero chart dependencies:
+
+- **Hero** — project title, one-line value proposition, and a prominent **"Open Dashboard →"** button
+- **Stats bar** — 24 wards · 300k+ samples · 15k+ complaints · <1s load
+- **Feature cards** — Anomaly Detection, Complaint Triage, In-DB Analytics, Free Forever
+- **Description section** — what the system does, how it inverts the illness-spike timeline, and why every number is traceable to a SQL statement
+- **Footer CTA** — second "Enter Dashboard" button
+
+Clicking either button navigates to `#/dashboard`, revealing the tab bar + Dashboard. The `← Home` button in the header returns to the landing page through the same route table.
+
+### Dashboard tabs
+
+The tab order is the demo narrative: what is wrong today → which ward → why → what
+nobody has acted on → what to do about it.
 
 | Tab | Component | Note |
 |-----|-----------|------|
-| Morning view | `Dashboard.jsx` | ward × month risk heatmap as a CSS grid of coloured cells — no chart lib, cannot break |
-| Trend | `Trend.jsx` | line chart, one ward × 4 params, moving-average + breach band + anomaly markers |
+| Dashboard | `Dashboard.jsx` | ward × month risk heatmap as a CSS grid of coloured cells — no chart lib, cannot break. Month slider + `▶ Replay` animates 12 months from one prefetched `/heatmap` payload (900 ms per tick, stops at the newest month, `live` badge when there); cells are `role="button"` and open the case file |
+| Wards | `WardDossier.jsx` | the case file, also `#/ward/12`: four weighted component bars labelled with the UDF's own 35/30/15/20, 12-month risk sparkline, four breach-forecast cards, current anomalies, recent complaints with `RULE_EVIDENCE`, a "Do next" checklist, and **Print report** |
+| Trend | `Trend.jsx` | line chart, one ward × 4 params, moving-average + breach band + anomaly markers; forecast row (status, ETA capped at the horizon, ±band, confidence) and an optional dashed 90-day projection |
 | Anomalies | `Anomalies.jsx` | flagged table; click → the exact SQL that produced it (`SqlDrawer.jsx`) |
+| Disagreements | `Disagreements.jsx` | "but the lab says compliant": probe breaches vs lab-confirmed breaches per ward × param, a verdict chip (`instrument_suspect` / `lab_confirmed` / `consistent`), and the ticket-worthy suspects called out above the table |
 | Complaints | `Complaints.jsx` | triage queue, category chips, severity sort, "rule fired" tooltip, search |
 | Leaderboard | `Leaderboard.jsx` | deteriorating wards bar |
+| Simulator | `Simulator.jsx` | four weight sliders (default 35/30/15/20). `100·Σ(wᵢcᵢ)/Σwᵢ` reproduces `RISK_SCORE` exactly at shipped weights — the page prints the measured drift, and the top three keep the stored score beside the simulated one as proof |
+| Briefing | `Briefing.jsx` | the three things to do today, chosen by `backend/brief.py` in a fixed priority order (rank → soonest crossing → instrument/complaints); watchlist, copy-Markdown, download `.md` / `.csv` — all client-side `Blob`s, no write endpoint |
 | Ingest | `Ingest.jsx` | drop the WhatsApp file → parse stats → classified preview |
-| Benchmark | `BenchmarkPage.jsx` | paired bars, "300,000 rows · N ms", replayable on stage |
+| Benchmark | `BenchmarkPage.jsx` | paired bars, "289k rows · N ms", replayable on stage |
 
 ### Chart.js discipline
 
-Register only used controllers; `parsing:false`, `normalized:true`, `animation:false`, `decimation:{algorithm:'lttb',samples:300}` so payloads stay ≤50 KB and the UI stays smooth inside a 6 GB VM.
+Register only used controllers (`Line`, `Bar`, `Category`, `Linear` and
+`Logarithmic` scales — the benchmark page plots milliseconds on a log axis, and a
+scale that is not registered throws instead of degrading) plus
+`normalized:true`, `animation:false`, `decimation:{algorithm:'lttb',samples:300}`
+so payloads stay ≤50 KB and the UI stays smooth inside a 6 GB VM.
+
+**`parsing` stays at its default.** Every dataset here is a primitive number array
+with a separate `labels` array, and `parsing:false` makes Chart.js treat each number
+as a pre-parsed `{x, y}` point — the axis then collapses to `NaN`. Both new charts
+(Trend projection, benchmark log axis) were checked against that failure mode.
 
 ### Demo parachute
 
-`scripts/snapshot_api.py` dumps every API response to `src/mock/*.json`; `VITE_MOCK=1` renders the identical UI with the DB down.
+`VITE_MOCK=1` renders the identical UI with the DB down. `src/devMock.js`
+answers every endpoint — including the four newer ones (`/heatmap`,
+`/disagreements`, `/wards/{id}/forecast`, `/brief`) and the four new SQL
+snippets — with the same UPPER_SNAKE keys the components already read, so no
+component branches on `IS_MOCK`. Three rules keep the parachute honest:
+
+- the mock derives `RISK_SCORE` from the same four components through the same
+  weights, so the Simulator's "reproduces `RISK_SCORE` exactly" claim holds in
+  mock mode too (measured drift `3.55e-15`);
+- ward names are looked up from the one ward table rather than typed per tab;
+- the newest heatmap month is the stored score, so the tile, the KPI and the case
+  file cannot disagree.
+
+`npm run dev:mock` starts Vite in that mode; `npm run build:mock` produces the
+same static bundle for a no-DB stage fallback. The production build tree-shakes
+the whole mock module because `IS_MOCK` is a compile-time `false`, so the real
+bundle pays nothing for it.
 
 ---
 
 ## Demo Script (5 min, `docs/demo-script.md`)
 
-1. Heatmap with one red corner → click the ward
-2. Trend chart showing the monsoon turbidity breach + z-score annotation
-3. "But the lab says compliant"
-4. Complaints tab shows 40 "kala paani / black water" messages
-5. Paste `db/sql/complaint_vs_lab_disagreement.sql` live into `exakit sql` and get the same number (the kit's ask → inspect-SQL → run → validate → rerun loop)
-6. Leaderboard
-7. `/api/classify` on a judge-supplied sentence
-8. Benchmark slide
+1. Heatmap with one red corner → press `▶ Replay` (twelve months in ten seconds) → click the ward
+2. Ward case file: four component bars that multiply out to the score, then **Print report**
+3. Trend chart showing the monsoon turbidity breach + z-score annotation + the breach-ETA card
+4. "But the lab says compliant" → Disagreements tab → the pH probe nobody has verified
+5. Complaints tab shows the "kala paani / black water" messages
+6. Paste `db/sql/sensor_vs_lab.sql` live into `exakit sql` and get the same number (the kit's ask → inspect-SQL → run → validate → rerun loop)
+7. Briefing tab → three actions, copy the Markdown
+8. Simulator → drag a weight, watch the ranking move, reset
+9. Leaderboard
+10. `/api/classify` on a judge-supplied sentence
+11. Benchmark slide
 
-### `run_demo.sh` — the stage artifact
+### `scripts/run_demo.sh` — the stage artifact (not yet written)
 
-Check `exakit status` → start if needed → build `dist` if missing → uvicorn on 8000 → print one URL. One command, one terminal, one port, nothing dependent on the internet.
+When it exists it will: check `exakit status` → start if needed → build `dist` if
+missing → uvicorn on 8000 → print one URL. One command, one terminal, one port,
+nothing dependent on the internet. Today the same three steps are the three
+commands in [Repository Layout](#repository-layout).
 
 ---
 
@@ -386,7 +531,7 @@ Phase 0 to green (2 h cap) → repo scaffold → `10_schema.sql` + `30_generate_
 
 ### Oct 25
 
-Leaderboard + benchmark pages → `run_demo.sh` → rehearse twice back-to-back → screenshots → submit.
+Leaderboard + benchmark pages → `scripts/run_demo.sh` → rehearse twice back-to-back → screenshots → submit.
 
 ### Minimum believable demo (if Oct 24 evening is missed)
 
@@ -394,18 +539,32 @@ DB green → data loaded → anomaly view + leaderboard → 5 read endpoints →
 
 ### Explicit cut list
 
-No auth, no multi-user, no real-time WhatsApp gateway, no LLM APIs, no maps/geo, no TypeScript, no router, no cloud deploy.
+No auth, no multi-user, no real-time WhatsApp gateway, no LLM APIs, no maps/geo, no TypeScript, no router *dependency* (a hand-written `hashchange` router is in), no cloud deploy, no persisted what-if scenarios or triage acknowledgements (the SELECT-only rule is worth more than the feature).
 
 ---
 
 ## Test Plan
 
-- `backend/tests/test_rules.py` — every rule fires on a known sentence; unknown → `other`; severity ordering
-- `backend/tests/test_parser.py` — both timestamp forms, `Media omitted`, multi-line, header/footer lines, non-English (Hinglish/romanised Marathi-Kannada) lines, the deliberately messy fixture
-- `backend/tests/test_sql_snapshots.py` — each `db/sql/*.sql` runs against the live DB with a row-count assertion (proves the planted signals are actually detectable)
-- `db/70_verify.sql` — `DESCRIBE` asserts every table + column name after load (catches the quoted-identifier trap)
-- Manual: `make refresh` twice → identical results (determinism); `VITE_MOCK=1` renders all 7 tabs
-- Each `db/sql/*.sql` is a single statement so it also runs through `exakit sql --file`
+```bash
+backend/.venv/bin/python -m pytest backend/tests -q
+# 143 passed, 16 skipped — the skips are the @requires_db live assertions,
+# because the local Exasol database is not installed on this machine.
+```
+
+| File | Covers | DB needed |
+|------|--------|-----------|
+| `test_rules.py` | every rule fires on a known sentence; unknown → `other`; severity ordering | no |
+| `test_parser.py` | both timestamp forms, `Media omitted`, multi-line, header/footer lines, non-English (Hinglish/romanised Marathi-Kannada) lines, the deliberately messy fixture | no |
+| `test_forecast.py` | upward drift with an upper limit and downward drift with a lower limit (chlorine); zero/`None` slope; already-over-limit; horizon overflow; band widens monotonically and is `None` below 7 samples; confidence tiers; `breach_date` arithmetic | no |
+| `test_brief.py` | exactly three actions; priority order; instrument-suspect beats complaints; every number in the text appears in the inputs; empty inputs produce the "no signal" line rather than a fabricated ward; markdown contains all three titles | no |
+| `test_sql_snapshots.py` | the 10 `db/sql/*.sql` files exist and obey the single-statement contract (`SELECT`, no `;`, a literal `LIMIT`), the 9 ODS files are present in pipeline order, and — with a DB — each demo query returns rows, `V_WARD_FORECAST` has 96 rows, and the SQL countdown agrees with `backend/forecast.py` within a day | partly |
+
+Manual checks:
+
+- `db/70_verify.sql` — `DESCRIBE` asserts every table and column name after load (catches the quoted-identifier trap)
+- Run the pipeline twice → identical results (determinism)
+- `npm --prefix frontend run build`, then `VITE_MOCK=1` and walk all **11** tabs; reload `#/ward/12` directly; print → PDF from the case file
+- Each `db/sql/*.sql` is a single statement, so it also runs through `exakit sql --file`
 
 ---
 
@@ -420,7 +579,7 @@ No auth, no multi-user, no real-time WhatsApp gateway, no LLM APIs, no maps/geo,
 | R5 | 16 GB host − VM reservation = OOM with VM + Vite + uvicorn + Chrome + OrbStack | VM cut to the enforced 4096 MB floor; serve static dist (kills the Vite process); close OrbStack/Electron apps; `--workers 1`; rehearse the exact process set |
 | R6 | Self-signed TLS breaks pyexasol | `websocket_sslopt={"cert_reqs": 0}`; smoke-test `db.py` before the UI exists; `exakit sql --json` fallback needs no TLS config |
 | R7 | CORS blank dashboard | Single-origin static mount; Vite proxy in dev only |
-| R8 | Stale materialized tables → wrong numbers on stage | `make refresh` one command; `LOAD_RUN` shown as "data as of …" in the footer (turns the risk into an honest feature) |
+| R8 | Stale materialized tables → wrong numbers on stage | Re-running `db/40_anomaly_window.sql` → `db/50_udf_ward_risk.lua.sql` → `db/60_materialize.sql` is three commands via `scripts/run_sql.py`; `LOAD_RUN` shown as "data as of …" in the footer (turns the risk into an honest feature) |
 | R9 | After-boot DDL ACK'd but not persisted | Idempotent `CREATE OR REPLACE`, re-verify from a fresh connection |
 | R10 | `sys` is admin and unsandboxed — a demo bug could DROP | Read endpoints are SELECT-only; no "clear tables" button wired to the demo; writes only via `db/` scripts |
 | R11 | Slow network blocks a late npm/uv install | Install Oct 23, commit `package-lock.json`, keep caches warm |

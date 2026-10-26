@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 
+from backend import forecast
 from backend.app import SQL_WHITELIST
 from backend.db import DatabaseUnavailable, get_db
 
@@ -40,12 +41,13 @@ requires_db = pytest.mark.skipif(not database_up(),
 
 
 # -- static: these always run -------------------------------------------------
-def test_the_six_demo_queries_exist():
+def test_the_ten_demo_queries_exist():
     names = {p.name for p in DEMO_QUERIES}
     assert names == {
         "latest_risk.sql", "monsoon_turbidity.sql", "outbreak_detection.sql",
         "deteriorating_wards.sql", "complaint_vs_lab_disagreement.sql",
-        "complaint_category_mix.sql"}
+        "complaint_category_mix.sql", "forecast_eta.sql", "sensor_vs_lab.sql",
+        "ward_month_matrix.sql", "morning_brief.sql"}
 
 
 @pytest.mark.parametrize("path", DEMO_QUERIES, ids=lambda p: p.name)
@@ -76,7 +78,8 @@ def test_the_apps_sql_viewer_only_points_at_files_that_exist(name, filename):
 def test_the_ods_layer_files_are_present_and_ordered():
     db_dir = SQL_DIR.parent
     for expected in ("10_schema.sql", "20_seed_dims.sql", "30_generate_readings.sql",
-                     "40_anomaly_window.sql", "50_udf_ward_risk.lua.sql",
+                     "40_anomaly_window.sql", "45_forecast_view.sql",
+                     "50_udf_ward_risk.lua.sql",
                      "60_materialize.sql", "61_materialize_no_udf.sql", "70_verify.sql"):
         assert (db_dir / expected).is_file(), f"missing {expected}"
 
@@ -142,6 +145,71 @@ def test_planted_signals_are_detectable_not_just_present():
         WHERE d.PARAM_CODE='TURBIDITY' AND NOT w.DOWNSTREAM
           AND SUBSTR(CAST(d.SAMPLE_DATE AS VARCHAR(32)),6,2) IN ('07','08','09')""")[0]["N"])
     assert down / down_n > up / up_n, "monsoon turbidity must be higher downstream"
+
+
+@requires_db
+def test_the_forecast_view_is_wide_and_derivable():
+    """The view is the only input the forecast module trusts.
+
+    Width is the contract: 24 wards x 4 parameters, one row each. If a join in
+    `45_forecast_view.sql` starts dropping wards the forecast page silently
+    shrinks, which reads as "no risk" rather than "broken query".
+    """
+    db = get_db()
+    wards = int(db.scalar("SELECT COUNT(*) AS N FROM WARDQ.WARD"))
+    params = int(db.scalar("SELECT COUNT(*) AS N FROM WARDQ.PARAMETER_LIMITS"))
+    rows = int(db.scalar("SELECT COUNT(*) AS N FROM WARDQ.V_WARD_FORECAST"))
+    assert rows == wards * params, f"expected {wards * params} forecast rows, found {rows}"
+
+    breaches = db.query(
+        "SELECT COUNT(*) AS N FROM WARDQ.V_WARD_FORECAST "
+        "WHERE RECENT_AVG IS NULL OR SLOPE_12M IS NULL")[0]["N"]
+    assert int(breaches) == 0, "a ward/parameter with no recent mean or slope cannot be forecast"
+
+
+@requires_db
+def test_the_sql_countdown_agrees_with_the_forecast_module():
+    """The demo query and the forecast card must not disagree.
+
+    The ETA CASE exists twice on purpose — once in `forecast.py` where it is
+    unit-tested, once in `forecast_eta.sql` where it is pasteable — so the demo
+    query can prove the card. This asserts the two agree per row, which is the
+    only way that promise survives a later edit to either one.
+    """
+    db = get_db()
+    rows = db.query("""
+        SELECT WARD_ID, PARAM_CODE, THRESHOLD_HI, THRESHOLD_LO, RECENT_AVG, SLOPE_12M,
+               RECENT_STDDEV, RECENT_N,
+               CASE WHEN SLOPE_12M IS NULL OR SLOPE_12M = 0 THEN NULL
+                    WHEN SLOPE_12M > 0 AND THRESHOLD_HI IS NOT NULL
+                         THEN (THRESHOLD_HI - RECENT_AVG) / SLOPE_12M
+                    WHEN SLOPE_12M < 0 AND THRESHOLD_LO IS NOT NULL
+                         THEN (RECENT_AVG - THRESHOLD_LO) / ABS(SLOPE_12M)
+                    ELSE NULL END AS DAYS_TO_BREACH
+        FROM WARDQ.V_WARD_FORECAST
+    """)
+    assert rows, "V_WARD_FORECAST returned nothing"
+    for row in rows:
+        current = None if row["RECENT_AVG"] is None else float(row["RECENT_AVG"])
+        slope = None if row["SLOPE_12M"] is None else float(row["SLOPE_12M"])
+        lo = None if row["THRESHOLD_LO"] is None else float(row["THRESHOLD_LO"])
+        hi = None if row["THRESHOLD_HI"] is None else float(row["THRESHOLD_HI"])
+
+        python_eta = forecast.days_to_breach(current, slope, lo, hi)
+        sql_eta = None if row["DAYS_TO_BREACH"] is None else float(row["DAYS_TO_BREACH"])
+        label = f"ward {row['WARD_ID']} {row['PARAM_CODE']}"
+
+        if python_eta is None:
+            assert sql_eta is None, f"{label}: SQL invented a countdown the module declines to"
+            continue
+        assert sql_eta is not None, f"{label}: SQL dropped a countdown the module computes"
+        assert abs(sql_eta - python_eta) < 1.0, \
+            f"{label}: SQL ETA {sql_eta:.1f}d vs module {python_eta:.1f}d"
+
+        status = forecast.status_for(current, slope, lo, hi)
+        if status == "deteriorating":
+            assert sql_eta > 0, \
+                f"{label}: deteriorating inside the horizon but the countdown is {sql_eta:.1f}d"
 
 
 @requires_db

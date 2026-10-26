@@ -1,0 +1,11 @@
+run_ts,scenario,engine,rows_touched,elapsed_ms,bytes_sent,note
+2026-10-24 01:29:40,S0_mirror_build,sqlite,288768,671,20041728,"one streaming read from Exasol, then INSERT; the mirror is the same dataset the columnar engine scans."
+2026-10-24 01:29:40,S1_scan_aggregate,exasol,288768,15,11231,"counts agree; 24x4 group-by over the full fact table. Local Personal VM: 2 vCPU / 6 GB, single data node."
+2026-10-24 01:29:40,S1_scan_aggregate,sqlite,288768,96,4415,"counts agree; same SQL text, same laptop, file-backed, single-threaded. Local Personal VM: 2 vCPU / 6 GB, single data node."
+2026-10-24 01:29:40,S2_ward_zscore,exasol,752,7,86359,"30-day trailing window executed in the engine; only the scored series crosses the wire."
+2026-10-24 01:29:40,S2_ward_zscore,python,752,19,39218,"same answer computed client-side after transferring the raw series (745 scored points); time = transfer + arithmetic."
+2026-10-24 01:29:40,S2_ward_zscore,sqlite,752,1,18162,"SQLite returns the un-windowed series; the scoring would still have to happen in Python. Same laptop."
+2026-10-24 01:29:40,S3_repeat_run_1,exasol,96,16,11231,"identical statement, same session (first run of this session)"
+2026-10-24 01:29:40,S3_repeat_run_2,exasol,96,14,11231,"identical statement, same session"
+2026-10-24 01:29:40,S3_repeat_run_3,exasol,96,13,11231,"identical statement, same session"
+2026-10-24 01:29:40,S3_cold_vs_warm,exasol,None,16,None,"first 16 ms vs best warm 13 ms; the result cache was not flushed (no documented flush command for this runtime), so 'cold' means first run of the session."

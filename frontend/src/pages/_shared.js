@@ -2,12 +2,20 @@ import { useEffect, useState } from 'react'
 import { getJSON } from '../api'
 
 // Tiny shared loader so every page gets the same loading/error discipline.
+// An empty path means "not ready yet": the page has nothing to ask for until an
+// id arrives, and skipping the fetch is better than requesting /api/wards/null.
 export function useGet(path, deps = []) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    if (!path) {
+      setData(null)
+      setError(null)
+      setLoading(false)
+      return undefined
+    }
     let alive = true
     setLoading(true)
     setError(null)
