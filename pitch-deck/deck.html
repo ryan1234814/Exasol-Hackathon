@@ -165,60 +165,105 @@
   <div class="meta">Built solo in 48 hours · Exasol Personal · 2 vCPU / 6 GB</div>
 </section>
 
-<!-- ============================ 2 — THE GAP ============================ -->
+<!-- ============================ 2 — PROBLEM STATEMENT ============================ -->
 <section class="slide">
   <div class="hair"></div>
-  <div class="eyebrow">The gap</div>
+  <div class="eyebrow">Problem statement · who has it</div>
+  <h1>Three people need the same answer, <span class="hl">at three different speeds</span>.</h1>
+  <div class="sub">One dataset, three jobs, and no shared surface between them. The gap is not missing
+    data — it is missing timing.</div>
+
+  <div class="body" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-content:space-between">
+    <div class="card">
+      <div class="src">Who · the ward health officer</div>
+      <h3 style="margin-top:8px">Ranks complaints by noise</h3>
+      <p>Holds the citizen signal but not the instruments, so the morning list is ordered by who
+        complained loudest rather than by which ward is actually deteriorating.</p>
+    </div>
+    <div class="card">
+      <div class="src">Who · the utility engineer</div>
+      <h3 style="margin-top:8px">Cannot tell a bad probe from bad water</h3>
+      <p>Probe alarms and lab confirmations sit in two registers that never meet. One ward shows
+        <b>22 pH alarms</b> and <b>zero</b> confirmations — so the safe habit becomes ignoring alarms.</p>
+    </div>
+    <div class="card">
+      <div class="src">Who · 1,002,700 residents</div>
+      <h3 style="margin-top:8px">Finds out last</h3>
+      <p>The wards downstream of the intake pay for contamination they did not produce, and their
+        first real warning is the clinic queue.</p>
+    </div>
+
+    <div class="card" style="margin-top:0;grid-column:1/-1;border-color:rgba(245,165,36,.34)">
+      <div class="src" style="color:#B98A3D">Why it matters</div>
+      <p style="margin-top:8px;font-size:14px;line-height:1.55;color:#DDEBF7">
+        By the time illness confirms a water failure, the exposure window has closed: the only action
+        left is <em>response</em>. Before it, a flushing order, a chlorine correction or a probe
+        calibration is still <em>prevention</em> — and a municipal dashboard that reports the week the
+        illness is counted cannot tell the two apart.</p>
+    </div>
+
+    <div class="strip" style="margin-top:0;grid-column:1/-1">
+      <div><div class="k">9 <span style="font-size:16px;color:#65809C">of 24</span></div><div class="klab">wards downstream of intake</div></div>
+      <div><div class="k">24 <span style="font-size:16px;color:#65809C">of 96</span></div><div class="klab">pairs over limit this month</div></div>
+      <div><div class="k">26 <span style="font-size:16px;color:#65809C">days</span></div><div class="klab">notice before the next crossing</div></div>
+      <div><div class="k">0</div><div class="klab">of them in an illness report yet</div></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>02 / 16</span></div>
+</section>
+
+<!-- ============================ 3 — WHY IT HAPPENS ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="eyebrow">Why it happens · three clocks</div>
   <h1>Water fails first. The evidence arrives <span class="hl">weeks later</span>.</h1>
   <div class="sub">A municipal water supply gives three signals on three completely different clocks.
     Every dashboard in the building reports the last one — the only one that is already too late.</div>
 
   <div class="body" style="display:flex;flex-direction:column;justify-content:center">
     <div class="clocks">
-      <div class="clock hero">
+      <div class="clock hero" style="padding:27px 24px">
         <div class="when">Clock 1 · hours</div>
-        <div class="what">The probe moves</div>
-        <p>Turbidity doubles at 11 pm. Residual chlorine decays below 0.2 mg/L.
-          The instrument knows the same night.</p>
+        <div class="what" style="font-size:21px">The probe moves</div>
+        <p style="font-size:13.5px;line-height:1.6;margin-top:10px">Turbidity doubles at 11 pm and residual
+          chlorine decays below 0.2 mg/L. The instrument knows the same night.</p>
       </div>
-      <div class="clock">
+      <div class="clock" style="padding:27px 24px">
         <div class="when">Clock 2 · 7–14 days</div>
-        <div class="what">The lab confirms</div>
-        <p>Coliform plates need incubation and a technician. Confirmation is a
-          report, not an alarm.</p>
+        <div class="what" style="font-size:21px">The lab confirms</div>
+        <p style="font-size:13.5px;line-height:1.6;margin-top:10px">Coliform plates need incubation and a
+          technician. Confirmation is a report, not an alarm.</p>
       </div>
-      <div class="clock">
+      <div class="clock" style="padding:27px 24px">
         <div class="when">Clock 3 · weeks</div>
-        <div class="what">The clinic fills</div>
-        <p>Diarrhoeal cases show up in PHC registers after the exposure window
-          has already closed.</p>
+        <div class="what" style="font-size:21px">The clinic fills</div>
+        <p style="font-size:13.5px;line-height:1.6;margin-top:10px">Diarrhoeal cases show up in PHC
+          registers after the exposure window has already closed.</p>
       </div>
     </div>
 
-    <div class="arrowline"><span>instrument knowledge</span><span class="ln"></span>
+    <div class="arrowline" style="margin-top:26px;font-size:12px"><span>instrument knowledge</span><span class="ln"></span>
       <span style="color:#F5A524">the 3-week window where an intervention still changes the outcome</span>
       <span class="ln"></span><span>human cost</span></div>
 
-    <div class="strip" style="margin-top:26px">
-      <div><div class="k">9 <span style="font-size:16px;color:#65809C">of 24</span></div>
-        <div class="klab">wards sit downstream of the intake</div></div>
-      <div><div class="k">24 <span style="font-size:16px;color:#65809C">of 96</span></div>
-        <div class="klab">ward × parameter pairs already over limit</div></div>
-      <div><div class="k">1 <span style="font-size:16px;color:#65809C">crossing</span></div>
-        <div class="klab">breaks 5 NTU in 26 days — knowable today</div></div>
-      <div><div class="k">0</div>
-        <div class="klab">of those crossings appear in any illness report yet</div></div>
+    <div class="card" style="margin-top:30px;padding:24px;border-color:rgba(56,189,248,.30)">
+      <div class="src" style="color:#7FB3D6">The window this product exists for</div>
+      <p style="margin-top:9px;font-size:15px;line-height:1.6;color:#DDEBF7">Between the probe firing
+        and the clinic filling there are about three weeks in which an intervention still changes the
+        outcome. Nothing in the municipal stack is built to act inside that window — and that window is
+        the product.</p>
     </div>
 
-    <div class="note" style="margin-top:16px;max-width:1010px">
+    <div class="note" style="margin-top:22px;max-width:1010px;font-size:12.5px">
       WARDQ does not wait for clock three. It reports clock one, prices clock two, and turns
-      “this ward is getting worse” into a dated work order: <span class="mono" style="color:#BFD8EA">Ward 191 · Turbidity 4.695 NTU · +0.0118/day · crosses 5 NTU ≈ 17 Nov</span>.
+      “this ward is getting worse” into a dated work order:
+      <div class="mono" style="margin-top:7px;color:#BFD8EA">Ward 191 · Turbidity 4.695 NTU · +0.0118/day · crosses 5 NTU ≈ 17 Nov</div>
     </div>
   </div>
-  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>02 / 15</span></div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>03 / 16</span></div>
 </section>
 
-<!-- ============================ 3 — WHAT IT IS ============================ -->
+<!-- ============================ 4 — WHAT IT IS ============================ -->
 <section class="slide">
   <div class="hair"></div>
   <div class="eyebrow">The product</div>
@@ -227,25 +272,32 @@
     two things missing from every civic dashboard: a dated forecast, and a receipt for every number.</div>
 
   <div class="body" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-content:space-between">
-    <div class="card">
+    <div class="card" style="padding:26px 24px">
       <div class="src">01 · Rank</div>
-      <h3 style="margin-top:8px">One score, four measured parts</h3>
-      <p><span class="mono" style="color:#BFD8EA">RISK_SCORE = 0.35·|z| + 0.30·breach days + 0.15·slope + 0.20·complaint density</span></p>
-      <p style="margin-top:8px">Computed in-database by a Lua UDF over 288,768 rows, materialised so the
+      <h3 style="margin-top:10px;font-size:16.5px">One score, four measured parts</h3>
+      <p style="font-size:13.6px;line-height:1.62"><span class="mono" style="color:#BFD8EA">RISK_SCORE = 0.35·|z| + 0.30·breach days + 0.15·slope + 0.20·complaint density</span></p>
+      <p style="margin-top:10px;font-size:13.6px;line-height:1.62">Computed in-database by a Lua UDF over 288,768 rows, materialised so the
         page never waits on a window function.</p>
     </div>
-    <div class="card">
+    <div class="card" style="padding:26px 24px">
       <div class="src">02 · Explain</div>
-      <h3 style="margin-top:8px">“Why” is a link, not a paragraph</h3>
-      <p>Every figure carries a <span class="mono" style="color:#BFD8EA">why this · file</span> chip that opens the
+      <h3 style="margin-top:10px;font-size:16.5px">“Why” is a link, not a paragraph</h3>
+      <p style="font-size:13.6px;line-height:1.62">Every figure carries a <span class="mono" style="color:#BFD8EA">why this · file</span> chip that opens the
         exact SQL in place. Eleven query recipes, one lineage registry, zero hand-typed numbers.</p>
     </div>
-    <div class="card">
+    <div class="card" style="padding:26px 24px">
       <div class="src">03 · Act</div>
-      <h3 style="margin-top:8px">The brief leaves the app</h3>
-      <p>Three ranked actions, downloadable as Markdown and CSV; each 90-day breach ETA also lands in the
+      <h3 style="margin-top:10px;font-size:16.5px">The brief leaves the app</h3>
+      <p style="font-size:13.6px;line-height:1.62">Three ranked actions, downloadable as Markdown and CSV; each 90-day breach ETA also lands in the
         officer’s calendar as a <span class="mono" style="color:#BFD8EA">.ics</span> with a 7-day alarm,
         plus a pull-based Atom feed.</p>
+    </div>
+
+    <div class="card" style="grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:18px 24px;border-color:rgba(56,189,248,.30)">
+      <div class="src" style="color:#7FB3D6;white-space:nowrap">The receipt</div>
+      <div class="note" style="font-size:12.5px;color:#DDEBF7;max-width:none">Every tile opens
+        <span class="mono" style="color:#BFD8EA">why this · db/sql/…</span> — the SQL file, the window, the row count
+        and the timestamp that produced the number on screen. A judge can check any figure in two clicks.</div>
     </div>
 
     <div class="strip" style="margin-top:0;grid-column:1/-1">
@@ -256,10 +308,10 @@
       <div><div class="k">&lt;1<span style="font-size:16px;color:#65809C">s</span></div><div class="klab">dashboard load, local</div></div>
     </div>
   </div>
-  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>03 / 15</span></div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>04 / 16</span></div>
 </section>
 
-<!-- ============================ 4 — DASHBOARD ============================ -->
+<!-- ============================ 5 — DASHBOARD ============================ -->
 <section class="slide">
   <div class="hair"></div>
   <div class="eyebrow">Feature · the morning board</div>
@@ -285,10 +337,10 @@
       </div>
     </div>
   </div>
-  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>04 / 15</span></div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>05 / 16</span></div>
 </section>
 
-<!-- ============================ 5 — CASE FILE ============================ -->
+<!-- ============================ 6 — CASE FILE ============================ -->
 <section class="slide">
   <div class="hair"></div>
   <div class="eyebrow">Feature · the case file</div>
@@ -314,10 +366,10 @@
       </div>
     </div>
   </div>
-  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>05 / 15</span></div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>06 / 16</span></div>
 </section>
 
-<!-- ============================ 6 — FORECAST ============================ -->
+<!-- ============================ 7 — FORECAST ============================ -->
 <section class="slide">
   <div class="hair"></div>
   <div class="eyebrow">Feature · the part nobody else ships</div>
@@ -347,10 +399,10 @@
       </ul>
     </div>
   </div>
-  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>06 / 15</span></div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>07 / 16</span></div>
 </section>
 
-<!-- ============================ 7 — DISAGREEMENTS ============================ -->
+<!-- ============================ 8 — DISAGREEMENTS ============================ -->
 <section class="slide">
   <div class="hair"></div>
   <div class="eyebrow">Feature · probe vs lab</div>
@@ -377,10 +429,10 @@
       </div>
     </div>
   </div>
-  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>07 / 15</span></div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>08 / 16</span></div>
 </section>
 
-<!-- ============================ 8 — COMPLAINTS ============================ -->
+<!-- ============================ 9 — COMPLAINTS ============================ -->
 <section class="slide">
   <div class="hair"></div>
   <div class="eyebrow">Feature · citizen signal</div>
@@ -408,10 +460,10 @@
       </div>
     </div>
   </div>
-  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>08 / 15</span></div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>09 / 16</span></div>
 </section>
 
-<!-- ============================ 9 — BRIEF ============================ -->
+<!-- ============================ 10 — BRIEF ============================ -->
 <section class="slide">
   <div class="hair"></div>
   <div class="eyebrow">Feature · the deliverable</div>
@@ -438,10 +490,10 @@
       </ul>
     </div>
   </div>
-  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>09 / 15</span></div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>10 / 16</span></div>
 </section>
 
-<!-- ============================ 10 — TRUST ============================ -->
+<!-- ============================ 11 — TRUST ============================ -->
 <section class="slide">
   <div class="hair"></div>
   <div class="eyebrow">Feature · trust</div>
@@ -468,10 +520,10 @@
       </div>
     </div>
   </div>
-  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>10 / 15</span></div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>11 / 16</span></div>
 </section>
 
-<!-- ============================ 11 — ARCHITECTURE ============================ -->
+<!-- ============================ 12 — ARCHITECTURE ============================ -->
 <section class="slide">
   <div class="hair"></div>
   <div class="eyebrow">Under the hood</div>
@@ -544,10 +596,10 @@
       <div><div class="k">0</div><div class="klab">third-party runtime deps</div></div>
     </div>
   </div>
-  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>11 / 15</span></div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>12 / 16</span></div>
 </section>
 
-<!-- ============================ 12 — BENCHMARK ============================ -->
+<!-- ============================ 13 — BENCHMARK ============================ -->
 <section class="slide">
   <div class="hair"></div>
   <div class="eyebrow">Measured, not asserted</div>
@@ -573,50 +625,56 @@
       </div>
     </div>
   </div>
-  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>12 / 15</span></div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>13 / 16</span></div>
 </section>
 
-<!-- ============================ 13 — RIGOR ============================ -->
+<!-- ============================ 14 — RIGOR ============================ -->
 <section class="slide">
   <div class="hair"></div>
   <div class="eyebrow">Engineering rigor</div>
   <h1>Built like it has to survive Monday — <span class="hl">213 tests</span>.</h1>
+  <div class="sub">Every claim in this deck has a test behind it, and the database-backed tests run against
+    the live Exasol instance rather than a fixture — the suite cannot go green while the data is broken.</div>
 
-  <div class="body" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-content:space-between">
-    <div class="card">
-      <div class="src">Correctness</div>
-      <ul class="ticks" style="margin-top:10px;margin-bottom:0">
-        <li><b>213 backend tests</b>, including SQL snapshot tests that execute against the live database and
-          assert the planted signals still appear.</li>
-        <li><b>No silent skips</b>: DB-backed tests fail loudly if the database is down, so a green run means
-          something.</li>
-        <li><b>Parser goldens</b> for the messy WhatsApp edge cases — emoji, Hinglish, forwarded chains.</li>
-        <li><b>Rule-table tests</b>: severities, tie-breaks and the explicit <span class="mono">other</span> fallback.</li>
+  <div class="body" style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:16px">
+    <div class="card" style="display:flex;flex-direction:column;justify-content:center;padding:22px 24px">
+      <div class="src">Data &amp; SQL · 68 tests</div>
+      <ul class="ticks" style="margin-top:12px;margin-bottom:0;font-size:13.5px">
+        <li><b>47 SQL snapshot tests</b> execute against the live database and assert the planted signals
+          still appear.</li>
+        <li><b>11 row-type</b> and <b>10 data-quality</b> tests guard the Exasol-to-API contract — and DB-backed
+          tests fail loudly, never silently skip.</li>
       </ul>
     </div>
-    <div class="card">
-      <div class="src">Reach & restraint</div>
-      <ul class="ticks" style="margin-top:10px;margin-bottom:0">
-        <li><b>Installable PWA</b> with an offline cache: pull the Wi-Fi dongle and the dashboard still opens,
-          with a badge that says it is stale.</li>
-        <li><b>Hindi chrome and Hindi brief</b>; light theme for a projector-heavy room.</li>
-        <li><b>CSV export on six tables</b> — no lock-in, the data leaves with the officer.</li>
-        <li><b>Zero new dependencies</b>: stdlib Python, hand-written JS, 101-line service worker, no router package.</li>
+    <div class="card" style="display:flex;flex-direction:column;justify-content:center;padding:22px 24px">
+      <div class="src">Parsing &amp; triage · 64 tests</div>
+      <ul class="ticks" style="margin-top:12px;margin-bottom:0;font-size:13.5px">
+        <li><b>24 parser goldens</b> for the messy WhatsApp edge cases — emoji, Hinglish, forwarded chains.</li>
+        <li><b>24 ingest</b> endpoint tests, so a dropped export cannot poison a load.</li>
+        <li><b>16 rule-table tests</b>: severities, tie-breaks and the explicit <span class="mono">other</span> fallback.</li>
       </ul>
     </div>
-
-    <div class="strip" style="margin-top:0;grid-column:1/-1">
-      <div><div class="k">213</div><div class="klab">tests passing</div></div>
-    <div><div class="k">3,983</div><div class="klab">lines of backend, stdlib only</div></div>
-    <div><div class="k">12</div><div class="klab">front-end tabs</div></div>
-    <div><div class="k">101</div><div class="klab">line service worker</div></div>
-      <div><div class="k">0</div><div class="klab">API keys or accounts</div></div>
+    <div class="card" style="display:flex;flex-direction:column;justify-content:center;padding:22px 24px">
+      <div class="src">Outputs &amp; measurement · 81 tests</div>
+      <ul class="ticks" style="margin-top:12px;margin-bottom:0;font-size:13.5px">
+        <li><b>15 brief · 13 forecast · 11 calendar</b> tests cover the numbers the officer actually acts on.</li>
+        <li><b>8 Atom · 5 lineage</b> tests keep the feed and the receipts honest.</li>
+        <li><b>15 benchmark · 14 load</b> tests keep every figure in this deck reproducible.</li>
+      </ul>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;justify-content:center;padding:22px 24px">
+      <div class="src">Reach &amp; restraint</div>
+      <ul class="ticks" style="margin-top:12px;margin-bottom:0;font-size:13.5px">
+        <li><b>Installable PWA</b> with an offline cache — pull the Wi-Fi dongle and it still opens, flagged stale.</li>
+        <li><b>Hindi chrome and brief</b>, light theme for a projector-heavy room, CSV export on six tables.</li>
+        <li><b>Zero new dependencies</b>: stdlib Python, hand-written JS, 101-line service worker, no router.</li>
+      </ul>
     </div>
   </div>
-  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>13 / 15</span></div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>14 / 16</span></div>
 </section>
 
-<!-- ============================ 14 — LIMITS ============================ -->
+<!-- ============================ 15 — LIMITS ============================ -->
 <section class="slide">
   <div class="hair"></div>
   <div class="eyebrow">Said out loud</div>
@@ -657,10 +715,10 @@
         the ingest path is a folder and a column map.</p>
     </div>
   </div>
-  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>14 / 15</span></div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>15 / 16</span></div>
 </section>
 
-<!-- ============================ 15 — CLOSE ============================ -->
+<!-- ============================ 16 — CLOSE ============================ -->
 <section class="slide">
   <div class="hair"></div>
   <div class="ask">
@@ -696,7 +754,7 @@
       </div>
     </div>
   </div>
-  <div class="foot"><span><b>Thank you</b> · questions welcome, including the hostile ones</span><span>15 / 15</span></div>
+  <div class="foot"><span><b>Thank you</b> · questions welcome, including the hostile ones</span><span>16 / 16</span></div>
 </section>
 
 </body>
