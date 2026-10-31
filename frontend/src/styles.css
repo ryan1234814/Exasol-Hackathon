@@ -122,12 +122,16 @@ a { color: var(--accent); }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; }
 .panel h2 { margin: 0 0 10px; font-size: 16px; }
 .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
-select, input, button.action {
+select, input, button.action, a.action {
   background: var(--panel-2); color: var(--ink); border: 1px solid var(--line);
   border-radius: 8px; padding: 6px 10px; font-size: 13px;
 }
-button.action { cursor: pointer; }
-button.action:hover { border-color: var(--accent); }
+button.action, a.action { cursor: pointer; }
+button.action:hover, a.action:hover { border-color: var(--accent); }
+/* a download link has to sit on the same baseline as the buttons beside it */
+a.action { display: inline-block; text-decoration: none; }
+button.action:disabled { cursor: not-allowed; opacity: .5; }
+button.action:disabled:hover { border-color: var(--line); }
 
 /* heatmap: CSS grid of coloured cells, no chart lib, cannot break */
 .heatmap { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
@@ -251,6 +255,10 @@ tr.clickable:hover { background: var(--panel-2); cursor: pointer; }
 .pill.deteriorating, .pill.rank, .pill.crossing { background: rgba(245, 158, 11, .18); color: #fcd34d; }
 .pill.improving, .pill.lab_confirmed { background: rgba(34, 197, 94, .18); color: #86efac; }
 .pill.stable, .pill.unknown, .pill.consistent, .pill.none, .pill.complaints { background: var(--panel-2); color: var(--muted); }
+/* data-quality bands (Trust page) — same three colours as the risk heat ramp */
+.pill.good { background: rgba(34, 197, 94, .18); color: #86efac; }
+.pill.watch { background: rgba(245, 158, 11, .18); color: #fcd34d; }
+.pill.poor { background: rgba(239, 68, 68, .18); color: #fca5a5; }
 
 /* ===== light theme ===== */
 :root[data-theme="light"] {
@@ -284,6 +292,9 @@ tr.clickable:hover { background: var(--panel-2); cursor: pointer; }
 :root[data-theme="light"] .pill.crossing { background: #fef3c7; color: #92400e; }
 :root[data-theme="light"] .pill.improving,
 :root[data-theme="light"] .pill.lab_confirmed { background: #dcfce7; color: #14532d; }
+:root[data-theme="light"] .pill.good { background: #dcfce7; color: #14532d; }
+:root[data-theme="light"] .pill.watch { background: #fef3c7; color: #92400e; }
+:root[data-theme="light"] .pill.poor { background: #fee2e2; color: #991b1b; }
 :root[data-theme="light"] .chip.active { color: #ffffff; }
 :root[data-theme="light"] .palette-scrim { background: rgba(15, 23, 32, .35); }
 

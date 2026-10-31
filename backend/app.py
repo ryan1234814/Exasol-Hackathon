@@ -13,23 +13,34 @@ and stays honest:
    aggregate measures **15 ms** on this VM (``BENCHMARK_RESULTS``,
    ``S1_scan_aggregate``/exasol), and materialising it into a fourth summary table
    would add three pipeline files to save single-digit milliseconds.
+
+   A second documented exception: ``/api/data-quality`` reads ``V_DATA_QUALITY``,
+   which counts the same 289k rows once per request. It exists because a
+   completeness number cannot be materialised into the risk tables without
+   pretending the gaps are a property of the score rather than of the samples.
+   It returns its own ``query_ms`` so the Trust page prints what it cost.
 2. **Everything is SELECT-only or preview-only.** The ingest endpoints parse and
    classify and return what *would* be written; they write nothing, so the demo
    can be re-run on stage as often as a judge likes (see risk R10 in the plan).
 
 Every value comes from a query, and every query is timed by ``db.ExasolDB`` so
 ``/api/benchmark`` can quote a measurement instead of an estimate.
+
+The calendar and the Atom feed are GETs over data that is already aggregated:
+no queue, no mail server, no account — which is what keeps the delivery story
+inside the free-forever constraint.
 """
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from typing import Any
 
-from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, Query, Request, Response, UploadFile
 from fastapi.staticfiles import StaticFiles
 
-from backend import brief, forecast, nlp_rules
+from backend import atom_feed, brief, calendar_feed, forecast, nlp_rules, quality
 from backend.db import DatabaseUnavailable, get_db
 from backend.ingest.load_complaints import build_ward_map, ward_from_filename
 from backend.ingest.tabular import UPLOAD_ID_BASE, load_tabular
@@ -60,7 +71,61 @@ SQL_WHITELIST = {
     "sensor_vs_lab": "sql/sensor_vs_lab.sql",
     "ward_month_matrix": "sql/ward_month_matrix.sql",
     "morning_brief": "sql/morning_brief.sql",
+    "data_quality": "sql/data_quality.sql",
+    "data_quality_view": "46_data_quality_view.sql",
 }
+
+# Every read endpoint and the file that produces it. This table is the reason
+# the Trust page can claim provenance: the page renders only what is listed
+# here, and test_lineage.py fails if a step stops existing in SQL_WHITELIST.
+LINEAGE = [
+    {"ENDPOINT": "/api/summary", "SQL_STEP": "latest_risk",
+     "TABLES": "WARD_MONTH_RISK, WARD, LOAD_RUN",
+     "NOTE": "header strip, scale counts and 'data as of'"},
+    {"ENDPOINT": "/api/wards", "SQL_STEP": "latest_risk",
+     "TABLES": "WARD, WARD_MONTH_RISK",
+     "NOTE": "one row per ward with its current risk and components"},
+    {"ENDPOINT": "/api/wards/{id}/trend", "SQL_STEP": "anomaly_window",
+     "TABLES": "WARD_DAILY, ANOMALY_EVENT, PARAMETER_LIMITS",
+     "NOTE": "server-side bucketing to <=500 points over the daily aggregate"},
+    {"ENDPOINT": "/api/anomalies", "SQL_STEP": "anomaly_window",
+     "TABLES": "ANOMALY_EVENT, WARD, PARAMETER_LIMITS",
+     "NOTE": "flagged ward x parameter x month rows, worst first"},
+    {"ENDPOINT": "/api/leaderboard", "SQL_STEP": "deteriorating_wards",
+     "TABLES": "WARD_MONTH_RISK, WARD, COMPLAINT_SUMMARY",
+     "NOTE": "the wards to visit first this month"},
+    {"ENDPOINT": "/api/heatmap", "SQL_STEP": "ward_month_matrix",
+     "TABLES": "WARD_MONTH_RISK, WARD",
+     "NOTE": "one payload for the replay slider, ~600 cells"},
+    {"ENDPOINT": "/api/wards/{id}/forecast", "SQL_STEP": "forecast_eta",
+     "TABLES": "V_WARD_FORECAST",
+     "NOTE": "breach ETA per parameter; branching lives in backend/forecast.py"},
+    {"ENDPOINT": "/api/forecast.ics", "SQL_STEP": "forecast_eta",
+     "TABLES": "V_WARD_FORECAST",
+     "NOTE": "same rows as an importable calendar, built by backend/calendar_feed.py"},
+    {"ENDPOINT": "/api/disagreements", "SQL_STEP": "sensor_vs_lab",
+     "TABLES": "V_LAB_VS_SENSOR, COMPLAINT_SUMMARY",
+     "NOTE": "probe breaches vs lab-confirmed ones, with a verdict"},
+    {"ENDPOINT": "/api/brief", "SQL_STEP": "morning_brief",
+     "TABLES": "WARD_MONTH_RISK, COMPLAINT_SUMMARY, V_WARD_FORECAST, V_LAB_VS_SENSOR",
+     "NOTE": "three actions in a fixed priority order; composed by backend/brief.py"},
+    {"ENDPOINT": "/feed/brief.xml", "SQL_STEP": "morning_brief",
+     "TABLES": "same as /api/brief",
+     "NOTE": "the same brief as Atom, so the feed cannot disagree with the page"},
+    {"ENDPOINT": "/api/complaints", "SQL_STEP": "complaint_category_mix",
+     "TABLES": "COMPLAINT, WARD",
+     "NOTE": "triage queue, LIMIT/OFFSET paged, q bound as a parameter"},
+    {"ENDPOINT": "/api/data-quality", "SQL_STEP": "data_quality",
+     "TABLES": "V_DATA_QUALITY",
+     "NOTE": "completeness and lab coverage; bands live in backend/quality.py"},
+    {"ENDPOINT": "/api/benchmark", "SQL_STEP": "latest_risk",
+     "TABLES": "BENCHMARK_RESULTS",
+     "NOTE": "measured timings; every speed claim on screen comes from here"},
+]
+
+LINEAGE_NOTE = ("One row per read endpoint, naming the saved query behind it. "
+                "Each step resolves through /api/sql/{step} and is a single "
+                "statement you can paste into exakit sql.")
 
 MAX_TREND_POINTS = 500
 
@@ -461,8 +526,13 @@ def disagreements(month: str | None = None,
 
 
 @app.get("/api/brief")
-def morning_brief(month: str | None = None) -> dict:
-    """Three prioritised actions, composed from SQL results by backend/brief.py."""
+def morning_brief(month: str | None = None,
+                  lang: str = Query("en", pattern="^(en|hi)$")) -> dict:
+    """Three prioritised actions, composed from SQL results by backend/brief.py.
+
+    ``lang`` only selects a template table; the numbers and the ordering are
+    identical, so switching language never changes what the brief claims.
+    """
     month = month or _latest_month()
 
     counts = _one("""
@@ -508,9 +578,92 @@ def morning_brief(month: str | None = None) -> dict:
 
     payload = brief.build_brief(month=month, counts=counts, ranked=ranked,
                                 forecast_items=forecast_items,
-                                disagreements=findings, freshness=freshness)
+                                disagreements=findings, freshness=freshness,
+                                lang=lang)
     payload["query_ms"] = get_db().last_query_ms
     return payload
+
+
+# -- trust, calendar and feed -------------------------------------------------
+def _staleness_days(last_date: Any) -> int | None:
+    """Days since the newest reading. The Trust page prints it as a fact."""
+    if not last_date:
+        return None
+    try:
+        return max(0, (date.today() - date.fromisoformat(str(last_date)[:10])).days)
+    except ValueError:
+        return None
+
+
+@app.get("/api/data-quality")
+def data_quality(month: str | None = None) -> dict:
+    """Completeness and lab coverage for one month, graded by quality.summarise.
+
+    Reads ``V_DATA_QUALITY`` (the second documented exception to the
+    materialised-only rule); the measured cost rides along as ``query_ms``.
+    """
+    month = month or _latest_month()
+    rows = _rows("""
+        SELECT SAMPLE_MONTH, WARD_ID, WARD_NAME, PARAM_CODE, UNIT,
+               N_READINGS, N_MISSING, N_LAB_VERIFIED, N_SENSOR_ONLY,
+               N_IMPLAUSIBLE, FIRST_DATE, LAST_DATE
+        FROM WARDQ.V_DATA_QUALITY
+        WHERE SAMPLE_MONTH = ?
+        ORDER BY WARD_ID, PARAM_CODE
+    """, [month])
+    last_date = max((str(r.get("LAST_DATE"))[:10] for r in rows if r.get("LAST_DATE")),
+                    default=None)
+    summary = quality.summarise(rows, staleness_days=_staleness_days(last_date))
+    return {"month": month, "summary": summary, "findings": summary["FINDINGS"],
+            "rows": rows, "query_ms": get_db().last_query_ms}
+
+
+@app.get("/api/lineage")
+def lineage() -> dict:
+    """The provenance table the Trust page renders — static, no query.
+
+    ``FILE`` and ``COMMAND`` are derived from ``SQL_WHITELIST`` rather than
+    written into ``LINEAGE`` by hand: the mapping step -> file already exists in
+    one place, and a second copy would be the exact drift this page is meant to
+    rule out. ``COMMAND`` is what a reader pastes into a terminal to reproduce
+    the number on screen without this server running.
+    """
+    rows = []
+    for row in LINEAGE:
+        path = f"db/{SQL_WHITELIST[row['SQL_STEP']]}"
+        rows.append({**row, "FILE": path,
+                     "COMMAND": f"backend/.venv/bin/python scripts/run_sql.py {path}"})
+    return {"count": len(rows), "rows": rows,
+            "steps": sorted({row["SQL_STEP"] for row in rows}),
+            "note": LINEAGE_NOTE}
+
+
+@app.get("/api/forecast.ics")
+def forecast_calendar(horizon_days: int = Query(90, ge=30, le=365),
+                      alarm_days: int = Query(7, ge=0, le=30)) -> Response:
+    """The breach forecast as an importable calendar file.
+
+    Same 96 rows the case file reads, rendered by backend/calendar_feed.py. The
+    dates come from the data, not the clock, so the file is reproducible.
+    """
+    items = [forecast.summarise(row, horizon_days)
+             for row in _rows("SELECT * FROM WARDQ.V_WARD_FORECAST")]
+    body = calendar_feed.build_ics(items, alarm_days=alarm_days)
+    return Response(
+        content=body,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition":
+                 'attachment; filename="wardq-breach-calendar.ics"'},
+    )
+
+
+@app.get("/feed/brief.xml")
+def brief_feed(request: Request, month: str | None = None,
+               lang: str = Query("en", pattern="^(en|hi)$")) -> Response:
+    """The morning brief as Atom, built from the same payload /api/brief returns."""
+    payload = morning_brief(month=month, lang=lang)
+    body = atom_feed.build_atom(payload, base_url=str(request.base_url).rstrip("/"))
+    return Response(content=body, media_type="application/atom+xml; charset=utf-8")
 
 
 # -- complaints ---------------------------------------------------------------
@@ -723,4 +876,4 @@ def main() -> None:  # pragma: no cover - process entry point
     uvicorn.run("backend.app:app", host="127.0.0.1", port=8000, workers=1, log_level="info")
 
 
-__all__ = ["app", "main", "MAX_TREND_POINTS"]
+__all__ = ["app", "main", "MAX_TREND_POINTS", "LINEAGE", "SQL_WHITELIST"]

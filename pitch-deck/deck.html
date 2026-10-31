@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WARDQ — Pitch Deck</title>
+<style>
+  :root{
+    --bg:#070C12; --panel:#0E1621; --panel2:#111C28; --line:#1C2B3D;
+    --ink:#E9F2FB; --dim:#9CB1C7; --mute:#65809C;
+    --cyan:#38BDF8; --cyan2:#7DD3FC; --amber:#F5A524; --red:#F0524B; --green:#35D07F;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+    color:var(--ink); -webkit-font-smoothing:antialiased;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  @page{ size:13.333in 7.5in; margin:0; }
+  .slide{
+    position:relative; width:1280px; height:720px; overflow:hidden;
+    background:
+      radial-gradient(900px 520px at 88% -14%, rgba(56,189,248,.13), transparent 60%),
+      radial-gradient(700px 420px at -8% 108%, rgba(245,165,36,.07), transparent 60%),
+      var(--bg);
+    padding:52px 60px 64px;
+    display:flex; flex-direction:column;
+    page-break-after:always; break-after:page;
+  }
+  .slide:last-of-type{ page-break-after:auto; }
+  .hair{ position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg,var(--cyan),#7C6BFF 46%,var(--amber)); opacity:.85; }
+  .eyebrow{ font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:#5E82A8; font-weight:600; }
+  h1{ font-size:42px; line-height:1.14; letter-spacing:-.024em; margin:12px 0 0; font-weight:700; }
+  h1 .hl{ color:var(--cyan2); }
+  .sub{ font-size:16px; line-height:1.55; color:var(--dim); margin-top:12px; max-width:1010px; }
+  .foot{ position:absolute; left:60px; right:60px; bottom:22px; display:flex; justify-content:space-between;
+    align-items:center; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#3E5A75; }
+  .foot b{ color:#5E82A8; font-weight:600; }
+  .body{ flex:1; min-height:0; margin-top:26px; }
+  code,.mono{ font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
+
+  /* ---------- cover ---------- */
+  .cover{ padding:0; }
+  .cover .grid{ display:grid; grid-template-columns:600px 1fr; height:100%; }
+  .cover .left{ padding:78px 0 66px 68px; display:flex; flex-direction:column; justify-content:center; }
+  .cover .right{ position:relative; display:flex; align-items:center; padding-right:56px; }
+  .wordmark{ font-size:74px; font-weight:800; letter-spacing:-.045em; line-height:.95; }
+  .wordmark span{ color:var(--cyan); }
+  .tag{ font-size:27px; line-height:1.3; font-weight:600; letter-spacing:-.02em; margin-top:22px; max-width:520px; }
+  .tag em{ font-style:normal; color:var(--amber); }
+  .lede{ font-size:14.5px; line-height:1.6; color:var(--dim); margin-top:16px; max-width:500px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:26px; }
+  .chip{ font-size:11.5px; padding:7px 11px; border:1px solid var(--line); border-radius:999px;
+    background:rgba(17,28,40,.75); color:#B7CBDD; letter-spacing:.02em; }
+  .chip b{ color:var(--cyan2); font-weight:700; }
+  .cover .meta{ position:absolute; left:68px; bottom:34px; font-size:11px; letter-spacing:.16em;
+    text-transform:uppercase; color:#3E5A75; }
+  .browser{ width:100%; border-radius:12px; border:1px solid #24374C; background:#0B1420;
+    box-shadow:0 40px 90px rgba(0,0,0,.62), 0 0 0 1px rgba(56,189,248,.10); overflow:hidden;
+    transform:rotate(-1.1deg); }
+  .bar{ display:flex; align-items:center; gap:7px; padding:9px 12px; border-bottom:1px solid #1B2A3B; background:#0E1A27; }
+  .dot{ width:8px;height:8px;border-radius:50%;background:#2C4056 }
+  .url{ margin-left:8px; font-size:10.5px; color:#6C89A6; background:#0A1420; border:1px solid #1B2A3B;
+    border-radius:5px; padding:3px 9px; flex:1; }
+  .browser img{ display:block; width:100%; height:auto; }
+
+  /* ---------- generic pieces ---------- */
+  .cols{ display:grid; gap:16px; height:100%; }
+  .card{ background:linear-gradient(180deg,rgba(20,32,46,.92),rgba(13,22,32,.92));
+    border:1px solid var(--line); border-radius:12px; padding:20px 22px; }
+  .card h3{ font-size:15px; margin:0 0 8px; letter-spacing:-.01em; }
+  .card p{ margin:0; font-size:13px; line-height:1.55; color:var(--dim); }
+  .fillc{ display:flex; flex-direction:column; justify-content:center; }
+  .k{ font-size:34px; font-weight:750; letter-spacing:-.03em; line-height:1; }
+  .klab{ font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:#5E7C9B; margin-top:7px; }
+  .shot{ width:100%; height:auto; display:block; border-radius:10px; border:1px solid #22364A;
+    box-shadow:0 26px 60px rgba(0,0,0,.5); }
+  .cap{ font-size:10.5px; color:#4F6C89; margin-top:9px; letter-spacing:.03em; }
+  ul.ticks{ margin:0; padding:0; list-style:none; }
+  ul.ticks li{ position:relative; padding-left:20px; margin-bottom:11px; font-size:13.5px; line-height:1.5; color:#C6D7E6; }
+  ul.ticks li:before{ content:""; position:absolute; left:0; top:7px; width:7px; height:7px; border-radius:2px;
+    background:var(--cyan); box-shadow:0 0 10px rgba(56,189,248,.6); }
+  ul.ticks li b{ color:#fff; font-weight:650; }
+  .strip{ display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:1px; background:var(--line);
+    border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .strip > div{ background:#0D1723; padding:16px 18px; }
+  .note{ font-size:11.5px; color:#6C89A6; line-height:1.5; }
+  .src{ font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:#415D78; }
+
+  /* ---------- clocks (slide 2) ---------- */
+  .clocks{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .clock{ border:1px solid var(--line); border-radius:12px; padding:18px 20px; background:#0D1723; position:relative; }
+  .clock .when{ font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:#5E7C9B; }
+  .clock .what{ font-size:19px; font-weight:700; margin-top:6px; letter-spacing:-.02em; }
+  .clock p{ font-size:12.5px; color:var(--dim); line-height:1.5; margin:8px 0 0; }
+  .clock.hero{ border-color:rgba(56,189,248,.45); background:linear-gradient(180deg,rgba(56,189,248,.14),rgba(13,23,35,.95));
+    box-shadow:0 0 0 1px rgba(56,189,248,.12), 0 20px 50px rgba(56,189,248,.08); }
+  .clock.hero .what{ color:var(--cyan2); }
+  .arrowline{ display:flex; align-items:center; gap:10px; font-size:11.5px; color:#4F6C89; margin-top:14px; }
+  .arrowline .ln{ flex:1; height:1px; background:linear-gradient(90deg,#1E3448,#2A4A6B,#1E3448); }
+
+  /* ---------- architecture (slide 11) ---------- */
+  .flow{ display:grid; grid-template-columns:repeat(5,1fr); gap:10px; align-items:stretch; }
+  .fbox{ border:1px solid var(--line); border-radius:12px; background:#0D1723; padding:18px 16px 16px; position:relative; }
+  .fbox .ft{ font-size:10px; letter-spacing:.15em; text-transform:uppercase; color:#5E7C9B; }
+  .fbox .fh{ font-size:13.5px; font-weight:700; margin-top:6px; }
+  .fbox ul{ margin:8px 0 0; padding-left:14px; }
+  .fbox li{ font-size:11.5px; line-height:1.5; color:#9CB1C7; margin-bottom:4px; }
+  .fbox.acc{ border-color:rgba(56,189,248,.42); background:linear-gradient(180deg,rgba(56,189,248,.12),#0D1723); }
+  .flowwrap{ position:relative; }
+  .badge{ position:absolute; top:-13px; left:50%; transform:translateX(-50%); font-size:9.5px; letter-spacing:.16em;
+    text-transform:uppercase; background:#0A1420; border:1px solid #24425D; color:#7FB3D6; padding:3px 9px; border-radius:999px; }
+  .legend{ display:flex; gap:18px; font-size:11px; color:#5E7C9B; margin-top:12px; }
+  .legend span{ display:flex; align-items:center; gap:6px; }
+  .sw{ width:9px; height:9px; border-radius:2px; display:inline-block; }
+
+  /* ---------- limits ---------- */
+  .lim{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .lim .l{ border:1px solid var(--line); border-left:3px solid var(--amber); border-radius:10px;
+    background:#0D1723; padding:14px 18px; }
+  .lim .l .h{ font-size:13px; font-weight:700; }
+  .lim .l .s{ font-size:11.5px; color:var(--dim); line-height:1.5; margin-top:5px; }
+
+  /* ---------- closing ---------- */
+  .ask{ display:grid; grid-template-columns:1.15fr .85fr; gap:22px; height:100%; }
+  .askline{ font-size:31px; line-height:1.24; letter-spacing:-.028em; font-weight:700; }
+  .askline span{ color:var(--cyan2); }
+  .road{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:16px; }
+  .road > div{ border-top:2px solid #24425D; padding-top:10px; }
+  .road .w{ font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#5E7C9B; }
+  .road .t{ font-size:11.5px; color:#C6D7E6; line-height:1.45; margin-top:5px; }
+  .sig{ display:flex; align-items:center; gap:14px; margin-top:22px; padding-top:16px; border-top:1px solid var(--line); }
+  .sig .num{ font-size:11px; color:#5E7C9B; letter-spacing:.05em; }
+  .big--{ font-size:96px; font-weight:800; letter-spacing:-.05em; color:rgba(56,189,248,.13); line-height:1; }
+</style>
+</head>
+<body>
+
+<!-- ============================ 1 — COVER ============================ -->
+<section class="slide cover">
+  <div class="hair"></div>
+  <div class="grid">
+    <div class="left">
+      <div class="eyebrow">ExaThon India 2026 · Civic / Sustainability</div>
+      <div class="wordmark" style="margin-top:18px">WARD<span>Q</span></div>
+      <div class="tag">Catch the water failing —<br><em>before</em> the clinic fills.</div>
+      <div class="lede">Ward-level water quality and complaint triage. One page each morning:
+        every ward ranked, every breach explained, every number traceable to the SQL that produced it.</div>
+      <div class="chips">
+        <div class="chip"><b>1,002,700</b> residents</div>
+        <div class="chip"><b>24</b> wards</div>
+        <div class="chip"><b>288,768</b> readings</div>
+        <div class="chip"><b>213</b> tests</div>
+        <div class="chip">runs offline · ₹0 forever</div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="browser">
+        <div class="bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">localhost:8000/#/dashboard</span></div>
+        <img src="assets/screens/dashboard.png" alt="WARDQ dashboard">
+      </div>
+    </div>
+  </div>
+  <div class="meta">Built solo in 48 hours · Exasol Personal · 2 vCPU / 6 GB</div>
+</section>
+
+<!-- ============================ 2 — THE GAP ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="eyebrow">The gap</div>
+  <h1>Water fails first. The evidence arrives <span class="hl">weeks later</span>.</h1>
+  <div class="sub">A municipal water supply gives three signals on three completely different clocks.
+    Every dashboard in the building reports the last one — the only one that is already too late.</div>
+
+  <div class="body" style="display:flex;flex-direction:column;justify-content:center">
+    <div class="clocks">
+      <div class="clock hero">
+        <div class="when">Clock 1 · hours</div>
+        <div class="what">The probe moves</div>
+        <p>Turbidity doubles at 11 pm. Residual chlorine decays below 0.2 mg/L.
+          The instrument knows the same night.</p>
+      </div>
+      <div class="clock">
+        <div class="when">Clock 2 · 7–14 days</div>
+        <div class="what">The lab confirms</div>
+        <p>Coliform plates need incubation and a technician. Confirmation is a
+          report, not an alarm.</p>
+      </div>
+      <div class="clock">
+        <div class="when">Clock 3 · weeks</div>
+        <div class="what">The clinic fills</div>
+        <p>Diarrhoeal cases show up in PHC registers after the exposure window
+          has already closed.</p>
+      </div>
+    </div>
+
+    <div class="arrowline"><span>instrument knowledge</span><span class="ln"></span>
+      <span style="color:#F5A524">the 3-week window where an intervention still changes the outcome</span>
+      <span class="ln"></span><span>human cost</span></div>
+
+    <div class="strip" style="margin-top:26px">
+      <div><div class="k">9 <span style="font-size:16px;color:#65809C">of 24</span></div>
+        <div class="klab">wards sit downstream of the intake</div></div>
+      <div><div class="k">24 <span style="font-size:16px;color:#65809C">of 96</span></div>
+        <div class="klab">ward × parameter pairs already over limit</div></div>
+      <div><div class="k">1 <span style="font-size:16px;color:#65809C">crossing</span></div>
+        <div class="klab">breaks 5 NTU in 26 days — knowable today</div></div>
+      <div><div class="k">0</div>
+        <div class="klab">of those crossings appear in any illness report yet</div></div>
+    </div>
+
+    <div class="note" style="margin-top:16px;max-width:1010px">
+      WARDQ does not wait for clock three. It reports clock one, prices clock two, and turns
+      “this ward is getting worse” into a dated work order: <span class="mono" style="color:#BFD8EA">Ward 191 · Turbidity 4.695 NTU · +0.0118/day · crosses 5 NTU ≈ 17 Nov</span>.
+    </div>
+  </div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>02 / 15</span></div>
+</section>
+
+<!-- ============================ 3 — WHAT IT IS ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="eyebrow">The product</div>
+  <h1>One page, every morning: <span class="hl">who is worst, why, and what to do</span>.</h1>
+  <div class="sub">Not another map. A triage sheet a ward officer can act on before 9 am — with the
+    two things missing from every civic dashboard: a dated forecast, and a receipt for every number.</div>
+
+  <div class="body" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-content:space-between">
+    <div class="card">
+      <div class="src">01 · Rank</div>
+      <h3 style="margin-top:8px">One score, four measured parts</h3>
+      <p><span class="mono" style="color:#BFD8EA">RISK_SCORE = 0.35·|z| + 0.30·breach days + 0.15·slope + 0.20·complaint density</span></p>
+      <p style="margin-top:8px">Computed in-database by a Lua UDF over 288,768 rows, materialised so the
+        page never waits on a window function.</p>
+    </div>
+    <div class="card">
+      <div class="src">02 · Explain</div>
+      <h3 style="margin-top:8px">“Why” is a link, not a paragraph</h3>
+      <p>Every figure carries a <span class="mono" style="color:#BFD8EA">why this · file</span> chip that opens the
+        exact SQL in place. Eleven query recipes, one lineage registry, zero hand-typed numbers.</p>
+    </div>
+    <div class="card">
+      <div class="src">03 · Act</div>
+      <h3 style="margin-top:8px">The brief leaves the app</h3>
+      <p>Three ranked actions, downloadable as Markdown and CSV; each 90-day breach ETA also lands in the
+        officer’s calendar as a <span class="mono" style="color:#BFD8EA">.ics</span> with a 7-day alarm,
+        plus a pull-based Atom feed.</p>
+    </div>
+
+    <div class="strip" style="margin-top:0;grid-column:1/-1">
+      <div><div class="k">288,768</div><div class="klab">lab + sensor readings</div></div>
+    <div><div class="k">15,063</div><div class="klab">complaints triaged</div></div>
+    <div><div class="k">96</div><div class="klab">ward × param forecasts</div></div>
+    <div><div class="k">4.3<span style="font-size:16px;color:#65809C">ms</span></div><div class="klab">13-month heatmap payload</div></div>
+      <div><div class="k">&lt;1<span style="font-size:16px;color:#65809C">s</span></div><div class="klab">dashboard load, local</div></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>03 / 15</span></div>
+</section>
+
+<!-- ============================ 4 — DASHBOARD ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="eyebrow">Feature · the morning board</div>
+  <h1>Every ward, ranked by risk — <span class="hl">replayable across 13 months</span>.</h1>
+
+  <div class="body" style="display:grid;grid-template-columns:1.62fr .85fr;gap:22px;align-content:start">
+    <div>
+      <img class="shot" src="assets/screens/dashboard.png" alt="Dashboard">
+      <div class="cap">Live capture · Exasol Personal · month 2026-10 · 24 wards</div>
+    </div>
+    <div>
+      <ul class="ticks" style="margin-top:4px">
+        <li><b>Colour is the score</b>, not a guess: orange to amber over four measured components.</li>
+        <li><b>Replay</b> scrubs the whole 24 × 13 grid — the same prefetched payload, 4.28 ms.</li>
+        <li><b>Worst ward first</b>: Ward 205 Peenya at 75.4, worst parameter coliform, 10,050 connections.</li>
+        <li><b>Every tile is a door</b> — click through to the case file without losing the month.</li>
+      </ul>
+      <div class="card" style="margin-top:6px;border-color:rgba(245,165,36,.35)">
+        <div class="src" style="color:#B98A3D">Before a single complaint</div>
+        <p style="margin-top:6px;font-size:13px">24 of 96 ward × parameter pairs are already
+          over their limit in the current month. The ranking is built from the instruments,
+          then corroborated by the citizens — never the other way round.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>04 / 15</span></div>
+</section>
+
+<!-- ============================ 5 — CASE FILE ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="eyebrow">Feature · the case file</div>
+  <h1>A score you can take apart — <span class="hl">bar by bar</span>.</h1>
+
+  <div class="body" style="display:grid;grid-template-columns:1.62fr .85fr;gap:22px;align-content:start">
+    <div>
+      <img class="shot" src="assets/screens/ward.png" alt="Ward dossier">
+      <div class="cap">Ward 24 · Ward 205 – Peenya · Bengaluru North · 43,900 people · 10,050 connections · downstream</div>
+    </div>
+    <div>
+      <ul class="ticks" style="margin-top:4px">
+        <li><b>Four bars, four weights</b> — anomaly |z|, days in breach, 12-month slope, complaint density — that
+          multiply out to 75.4.</li>
+        <li><b>13-month risk ribbon</b> shows whether this is a bad month or a bad trend.</li>
+        <li><b>Breach forecast per parameter</b>, each with a confidence label and the ±1.96σ band at 90 days.</li>
+        <li><b>Print report</b> and a deep link (<span class="mono">#/ward/24</span>) that survives a reload.</li>
+      </ul>
+      <div class="card" style="margin-top:6px">
+        <div class="src">Why the tribunal is short</div>
+        <p style="margin-top:6px;font-size:13px">The weights live in the UDF, not in a slide deck. Change them,
+          re-materialise, and every ward on every screen moves together — an auditable policy, not a tuned opinion.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>05 / 15</span></div>
+</section>
+
+<!-- ============================ 6 — FORECAST ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="eyebrow">Feature · the part nobody else ships</div>
+  <h1>A dated breach forecast, with <span class="hl">an honest error bar</span>.</h1>
+  <div class="sub">Two years of daily readings become 108 weekly buckets, an ordinary-least-squares slope over trailing
+    12 months, and a 90-day projection band that widens as √(days/7) — because a straight line deserves to look less certain the further it is dragged.</div>
+
+  <div class="body" style="display:grid;grid-template-columns:1.62fr .85fr;gap:22px;align-content:start">
+    <div>
+      <img class="shot" src="assets/screens/trend.png" alt="Trend and projection">
+      <div class="cap">Ward 11 · Vile Parle East · turbidity, monsoon intrusions visible as two cliff edges · 108 buckets · 6.97 ms</div>
+    </div>
+    <div>
+      <div class="card" style="border-color:rgba(56,189,248,.38)">
+        <div class="src" style="color:#7FB3D6">The line that matters</div>
+        <div style="font-size:15px;line-height:1.5;margin-top:8px;color:#DDEBF7">
+          <b>4.695 NTU</b> today, <b>+0.0118/day</b> over 12 months →
+          crosses the <b>5 NTU</b> limit in <b style="color:#F5A524">26 days</b>.
+        </div>
+        <p style="margin-top:8px;font-size:12px">Ward 191 · Banashankari. High confidence, 31 samples.
+          That is a flushing order three weeks before a boil notice.</p>
+      </div>
+      <ul class="ticks" style="margin-top:14px">
+        <li><b>Every parameter</b> gets its own verdict: stable, over limit, or a dated crossing.</li>
+        <li><b>Status is computed</b> from slope and threshold — <span class="mono">≥90d</span>, <span class="mono">~26d</span> or <span class="mono">over limit</span>.</li>
+        <li><b>The same number</b> drives the calendar alarm and the morning brief.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>06 / 15</span></div>
+</section>
+
+<!-- ============================ 7 — DISAGREEMENTS ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="eyebrow">Feature · probe vs lab</div>
+  <h1>A sensor breach with no lab breach is <span class="hl">an instrument problem, not a water problem</span>.</h1>
+
+  <div class="body" style="display:grid;grid-template-columns:1.62fr .85fr;gap:22px;align-content:start">
+    <div>
+      <img class="shot" src="assets/screens/disagreements.png" alt="Sensor vs lab disagreement">
+      <div class="cap">96 of 96 ward × parameter rows · 23.5 ms over a 288k-row aggregate</div>
+    </div>
+    <div>
+      <ul class="ticks" style="margin-top:4px">
+        <li><b>Three verdicts, computed</b> from the two breach counts — never from prose:
+          instrument suspect, lab confirmed, consistent.</li>
+        <li><b>Ward 51 · Indiranagar</b>: 22 pH probe breaches, <b>0</b> lab-confirmed, 8 complaints →
+          send a technician, not a tanker.</li>
+        <li><b>Ward 3 · Powai</b>: 11 coliform probe breaches and 40 lab-confirmed → this one is real.</li>
+        <li><b>Filter and export</b> the whole table; judges walk away with the CSV.</li>
+      </ul>
+      <div class="card" style="margin-top:6px;border-color:rgba(53,208,127,.32)">
+        <div class="src" style="color:#4FAE80">Why this wins rooms</div>
+        <p style="margin-top:6px;font-size:13px">Most teams only know how to raise alarms. This screen knows how to
+          <em>withdraw</em> one — and that is the difference between a dashboard and a dispatch desk.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>07 / 15</span></div>
+</section>
+
+<!-- ============================ 8 — COMPLAINTS ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="eyebrow">Feature · citizen signal</div>
+  <h1>15,063 WhatsApp complaints, triaged by <span class="hl">169 patterns</span>.</h1>
+
+  <div class="body" style="display:grid;grid-template-columns:1.62fr .85fr;gap:22px;align-content:start">
+    <div>
+      <img class="shot" src="assets/screens/complaints.png" alt="Complaint triage">
+      <div class="cap">Ward-group exports parsed straight from the raw .txt files · 4 categories · severity independent of category</div>
+    </div>
+    <div>
+      <ul class="ticks" style="margin-top:4px">
+        <li><b>Three weighted rule groups</b> — contamination, leakage, pressure — plus an explicit
+          <span class="mono">other</span> fallback so a mis-tag is visible, not hidden.</li>
+        <li><b>Severity is decided separately</b> from category: a leak that has run for three days outranks
+          a faint smell.</li>
+        <li><b>Evidence per message</b>: the matched phrase is stored in a column you can query — the answer to
+          “why is this tagged contamination” is a row, not a latent vector.</li>
+        <li><b>No download, no key, no bill</b>: pure standard library on a 350 KB/s link.</li>
+      </ul>
+      <div class="card" style="margin-top:6px">
+        <div class="src">Rule version 2026.10</div>
+        <p style="margin-top:6px;font-size:13px">The rule table is data, so it can be tuned live in front of an
+          audience without touching control flow — and tuned rules re-score all 15,063 messages in one pass.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>08 / 15</span></div>
+</section>
+
+<!-- ============================ 9 — BRIEF ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="eyebrow">Feature · the deliverable</div>
+  <h1>The brief <span class="hl">leaves the app</span> and walks into the officer’s day.</h1>
+
+  <div class="body" style="display:grid;grid-template-columns:1.62fr .85fr;gap:22px;align-content:start">
+    <div>
+      <img class="shot" src="assets/screens/brief.png" alt="Morning brief">
+      <div class="cap">Composed by backend/brief.py from SQL results — no model, no network · 4.1 ms</div>
+    </div>
+    <div>
+      <div class="card" style="border-color:rgba(56,189,248,.34)">
+        <div class="src" style="color:#7FB3D6">Three actions, ranked, each with a reason</div>
+        <p style="margin-top:8px;font-size:13px">
+          <b>#1 RANK</b> start with the worst ward · <b>#2 CROSSING</b> plan for the ward that breaches in 26 days ·
+          <b>#3 INSTRUMENT</b> check the probe that only the instrument believes.</p>
+      </div>
+      <ul class="ticks" style="margin-top:14px">
+        <li><b>Download</b> <span class="mono">.md</span> and an actions <span class="mono">.csv</span>; copy to clipboard in one click.</li>
+        <li><b>Calendar</b>: <span class="mono">/api/calendar.ics</span> puts every 90-day breach ETA in the officer’s
+          calendar with a 7-day alarm.</li>
+        <li><b>Atom feed</b>: pull, not push — no SMS bill, no vendor, no account.</li>
+        <li><b>Hindi brief</b>, because the officer who reads it at 8 am is not reading an English dashboard.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>09 / 15</span></div>
+</section>
+
+<!-- ============================ 10 — TRUST ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="eyebrow">Feature · trust</div>
+  <h1>The dashboard publishes <span class="hl">its own defect rate</span>.</h1>
+
+  <div class="body" style="display:grid;grid-template-columns:1.62fr .85fr;gap:22px;align-content:start">
+    <div>
+      <img class="shot" src="assets/screens/trust.png" alt="Trust and data quality">
+      <div class="cap">V_DATA_QUALITY · completeness and lab coverage counted in SQL, bands decided in testable Python</div>
+    </div>
+    <div>
+      <ul class="ticks" style="margin-top:4px">
+        <li><b>97.01% complete</b>, 97.9% lab-verified — and the 253 readings with no result are named, counted
+          and left in the denominator.</li>
+        <li><b>Zero implausible values</b> of 8,448: nothing on screen is a parsing artefact.</li>
+        <li><b>Lineage registry</b>: every figure names the file behind it, opens that SQL in place, and copies the
+          command that reproduces it.</li>
+        <li><b>9 days old</b> is shown as a fact, not hidden — freshness is a number, not a slogan.</li>
+      </ul>
+      <div class="card" style="margin-top:6px">
+        <div class="src">The demo line</div>
+        <p style="margin-top:6px;font-size:13px">“Three percent of our readings are unusable. Here is the
+          number, the cause, and the query — rather than a promise that the data is clean.”</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>10 / 15</span></div>
+</section>
+
+<!-- ============================ 11 — ARCHITECTURE ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="eyebrow">Under the hood</div>
+  <h1>Every analytic runs <span class="hl">inside Exasol</span>.</h1>
+  <div class="sub">The application never does the maths — it reads answers the engine has already computed,
+    which is why the whole dashboard loads in under a second on a two-core VM.</div>
+
+  <div class="body" style="display:flex;flex-direction:column;justify-content:center">
+    <div class="flow">
+      <div class="fbox">
+        <div class="ft">Sources</div>
+        <div class="fh">What a ULB already has</div>
+        <ul>
+          <li>Probe / lab CSV logs</li>
+          <li>WhatsApp ward exports (.txt)</li>
+          <li>Ward master (population, connections)</li>
+        </ul>
+      </div>
+      <div class="fbox">
+        <div class="ft">Ingest</div>
+        <div class="fh">Stdlib parsers, audited</div>
+        <ul>
+          <li>Tolerant CSV + messy-edge-case parsers</li>
+          <li>169-pattern rule classifier</li>
+          <li>LOAD_RUN audit row per load</li>
+        </ul>
+      </div>
+      <div class="fbox acc">
+        <div class="ft">Exasol Personal · WARDQ</div>
+        <div class="fh">Where the maths lives</div>
+        <ul>
+          <li>10 tables · 10 analytical views</li>
+          <li>Lua UDF RISK_SCORE</li>
+          <li>2 materialisations (with / without UDF)</li>
+          <li>Window functions: z-score, breach islands, slope</li>
+        </ul>
+      </div>
+      <div class="fbox">
+        <div class="ft">Serving</div>
+        <div class="fh">22 endpoints, one origin</div>
+        <ul>
+          <li>FastAPI, stdlib only</li>
+          <li>Pre-aggregated reads only</li>
+          <li>Same origin, same port — CORS deleted</li>
+        </ul>
+      </div>
+      <div class="fbox">
+        <div class="ft">Surface</div>
+        <div class="fh">12-tab PWA + outputs</div>
+        <ul>
+          <li>Offline service worker (101 lines)</li>
+          <li>Hindi chrome · light theme</li>
+          <li>.md · .csv · .ics · Atom</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><i class="sw" style="background:#38BDF8"></i> the engine does the work</span>
+      <span><i class="sw" style="background:#F5A524"></i> 6.3 GB total RAM · 2.2 GB on disk</span>
+      <span><i class="sw" style="background:#35D07F"></i> no cloud, no account, no API key</span>
+    </div>
+
+    <div class="strip" style="margin-top:22px">
+      <div><div class="k">10</div><div class="klab">tables</div></div>
+      <div><div class="k">10</div><div class="klab">analytical views</div></div>
+      <div><div class="k">1</div><div class="klab">Lua UDF, RISK_SCORE</div></div>
+      <div><div class="k">11</div><div class="klab">SQL recipes behind “why this”</div></div>
+      <div><div class="k">22</div><div class="klab">JSON endpoints</div></div>
+      <div><div class="k">0</div><div class="klab">third-party runtime deps</div></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>11 / 15</span></div>
+</section>
+
+<!-- ============================ 12 — BENCHMARK ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="eyebrow">Measured, not asserted</div>
+  <h1>Why Exasol: <span class="hl">6.4× faster on the same 288k-row scan</span>.</h1>
+
+  <div class="body" style="display:grid;grid-template-columns:1.62fr .85fr;gap:22px;align-content:start">
+    <div>
+      <img class="shot" src="assets/screens/benchmark.png" alt="Engine benchmark">
+      <div class="cap">Benchmark tab · in-app, re-runnable · 2 vCPU / 6 GB, one data node</div>
+    </div>
+    <div>
+      <ul class="ticks" style="margin-top:4px">
+        <li><b>15 ms vs 96 ms</b> — monthly aggregate over 288,768 rows: Exasol against the same query in SQLite.</li>
+        <li><b>7 ms vs 19 ms</b> — ward z-scores, in-database against the same arithmetic in Python.</li>
+        <li><b>11,231 bytes</b> on the wire instead of 20 MB moved to a mirror.</li>
+        <li><b>671 ms</b> just to build that mirror — the cost the dashboard never pays.</li>
+      </ul>
+      <div class="card" style="margin-top:6px;border-color:rgba(245,165,36,.32)">
+        <div class="src" style="color:#B98A3D">What we do not claim</div>
+        <p style="margin-top:6px;font-size:13px">Single node, and no <span class="mono">DISTRIBUTED BY</span> in the DDL —
+          this Personal build does not parse it, so a distribution story would be fiction. The wins reported are
+          columnar scan, predicate pushdown, pre-aggregation and the result cache.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>12 / 15</span></div>
+</section>
+
+<!-- ============================ 13 — RIGOR ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="eyebrow">Engineering rigor</div>
+  <h1>Built like it has to survive Monday — <span class="hl">213 tests</span>.</h1>
+
+  <div class="body" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-content:space-between">
+    <div class="card">
+      <div class="src">Correctness</div>
+      <ul class="ticks" style="margin-top:10px;margin-bottom:0">
+        <li><b>213 backend tests</b>, including SQL snapshot tests that execute against the live database and
+          assert the planted signals still appear.</li>
+        <li><b>No silent skips</b>: DB-backed tests fail loudly if the database is down, so a green run means
+          something.</li>
+        <li><b>Parser goldens</b> for the messy WhatsApp edge cases — emoji, Hinglish, forwarded chains.</li>
+        <li><b>Rule-table tests</b>: severities, tie-breaks and the explicit <span class="mono">other</span> fallback.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="src">Reach & restraint</div>
+      <ul class="ticks" style="margin-top:10px;margin-bottom:0">
+        <li><b>Installable PWA</b> with an offline cache: pull the Wi-Fi dongle and the dashboard still opens,
+          with a badge that says it is stale.</li>
+        <li><b>Hindi chrome and Hindi brief</b>; light theme for a projector-heavy room.</li>
+        <li><b>CSV export on six tables</b> — no lock-in, the data leaves with the officer.</li>
+        <li><b>Zero new dependencies</b>: stdlib Python, hand-written JS, 101-line service worker, no router package.</li>
+      </ul>
+    </div>
+
+    <div class="strip" style="margin-top:0;grid-column:1/-1">
+      <div><div class="k">213</div><div class="klab">tests passing</div></div>
+    <div><div class="k">3,983</div><div class="klab">lines of backend, stdlib only</div></div>
+    <div><div class="k">12</div><div class="klab">front-end tabs</div></div>
+    <div><div class="k">101</div><div class="klab">line service worker</div></div>
+      <div><div class="k">0</div><div class="klab">API keys or accounts</div></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>13 / 15</span></div>
+</section>
+
+<!-- ============================ 14 — LIMITS ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="eyebrow">Said out loud</div>
+  <h1>The limits, <span class="hl">before you ask</span>.</h1>
+  <div class="sub">Every number in this deck was measured on this machine. The three things that were not are below —
+    and each one is a scope boundary, not a surprise.</div>
+
+  <div class="body" style="display:flex;flex-direction:column;justify-content:center">
+    <div class="lim">
+      <div class="l">
+        <div class="h">The readings are generated</div>
+        <div class="s">288,768 samples and 15,063 complaints are synthesised in pure SQL, with the monsoon
+          intrusions and probe faults deliberately planted so the detectors have something true to find.
+          The pipeline, the SQL and the detectors are real; the water is not.</div>
+      </div>
+      <div class="l">
+        <div class="h">One node, no replication</div>
+        <div class="s">Exasol Personal on 2 vCPU / 6 GB. Fast enough to prove the columnar case; not a municipal
+          HA story. Nothing here is benchmarked against a distributed cluster, and we say so on the benchmark page.</div>
+      </div>
+      <div class="l">
+        <div class="h">The forecast is a straight line, on purpose</div>
+        <div class="s">OLS slope over a trailing 12 months with a widening 90-day band — no hydrology model, no
+          rainfall covariates. It is a triage instrument that will be wrong in interesting ways, which is why the
+          band and the confidence label ship with the number.</div>
+      </div>
+      <div class="l">
+        <div class="h">3% of readings are unusable</div>
+        <div class="s">253 of 8,448 cells have no result. They are excluded from means, counted in completeness,
+          and displayed on the Trust tab. A detector that pretends to 100% coverage is lying about the network.</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;border-color:rgba(56,189,248,.32)">
+      <div class="src" style="color:#7FB3D6">What a pilot would need from a real ULB</div>
+      <p style="margin-top:6px;font-size:13px">Ninety days of probe and lab exports for one ward, the ward population
+        table, and the WhatsApp group the complaints already arrive in. No integration project, no procurement cycle —
+        the ingest path is a folder and a column map.</p>
+    </div>
+  </div>
+  <div class="foot"><span><b>WARDQ</b> · ExaThon India 2026</span><span>14 / 15</span></div>
+</section>
+
+<!-- ============================ 15 — CLOSE ============================ -->
+<section class="slide">
+  <div class="hair"></div>
+  <div class="ask">
+    <div style="display:flex;flex-direction:column;justify-content:center">
+      <div class="eyebrow">The ask</div>
+      <div class="askline" style="margin-top:14px">Give us <span>one ward</span>, ninety days,<br>and one officer’s morning.</div>
+      <div class="sub" style="max-width:620px;margin-top:14px">The dashboard is already built, tested and offline-capable.
+        The next 30 days are about turning a demo dataset into a decision someone actually makes.</div>
+
+      <div class="road">
+        <div><div class="w">Days 1–7</div><div class="t">Ingest their exports; map their ward and parameter master.</div></div>
+        <div><div class="w">Days 8–14</div><div class="t">Calibrate thresholds and the four weights with the officer, not for him.</div></div>
+        <div><div class="w">Days 15–21</div><div class="t">Hindi brief, calendar alarms, CSV hand-off into their existing process.</div></div>
+        <div><div class="w">Days 22–30</div><div class="t">Publish a baseline: which wards move, and whether anyone acted early.</div></div>
+      </div>
+
+      <div class="sig">
+        <div class="num">WARDQ · ward-level water quality &amp; complaint triage</div>
+        <div class="num" style="margin-left:auto">ExaThon India 2026 · Civic / Sustainability</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:center;padding-left:6px">
+      <div class="big--" style="color:rgba(56,189,248,.30);font-size:88px">₹0</div>
+      <div class="note" style="margin-top:6px;max-width:320px">Software cost of the pilot. Exasol Personal, stdlib Python
+        and hand-written JS — no licence, no cloud bill, no per-ward fee.</div>
+      <div style="margin-top:18px;display:grid;gap:8px">
+        <div class="card" style="padding:12px 16px"><div class="src">Live</div>
+          <div class="mono" style="font-size:12.5px;color:#BFD8EA;margin-top:4px">localhost:8000</div></div>
+        <div class="card" style="padding:12px 16px"><div class="src">Proof</div>
+          <div style="font-size:12.5px;color:#BFD8EA;margin-top:4px">24 wards · 288,768 readings · 15,063 complaints · 213 tests</div></div>
+        <div class="card" style="padding:12px 16px"><div class="src">Repeatable</div>
+          <div style="font-size:12.5px;color:#BFD8EA;margin-top:4px">Every figure on screen opens the SQL behind it</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>Thank you</b> · questions welcome, including the hostile ones</span><span>15 / 15</span></div>
+</section>
+
+</body>
+</html>

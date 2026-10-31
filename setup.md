@@ -44,10 +44,15 @@ backend/.venv/bin/python scripts/run_sql.py db/70_verify.sql
 ```bash
 for f in db/10_schema.sql db/20_seed_dims.sql db/30_generate_readings.sql \
          db/40_anomaly_window.sql db/45_forecast_view.sql \
+         db/46_data_quality_view.sql \
          db/50_udf_ward_risk.lua.sql db/60_materialize.sql db/70_verify.sql; do
   backend/.venv/bin/python scripts/run_sql.py $f
 done
 ```
+
+`46_data_quality_view.sql` only creates `V_DATA_QUALITY`; it writes no data and
+can be re-run at any time, but it must run **after** `30_generate_readings.sql`
+because it aggregates `SAMPLE_LOG`.
 
 ---
 
@@ -88,6 +93,15 @@ To rebuild after changing frontend code:
 npm --prefix frontend run build
 ```
 
+The production bundle also registers the service worker in `frontend/public/sw.js`,
+so once the build is served from `http://127.0.0.1:8000` the dashboard is
+installable (Chrome: **Install app**) and reloads with the network off. Service
+workers require a secure context — `localhost` and `127.0.0.1` count, a plain-http
+LAN address does not, and there the app simply runs without the cache.
+
+If a cached bundle ever looks stale, use **Trust → Clear cached data**, or bump
+`CACHE_VERSION` in `frontend/public/sw.js` and rebuild.
+
 ### Development mode (hot reload, proxies `/api` to port 8000)
 
 ```bash
@@ -114,5 +128,10 @@ npm --prefix frontend install
 | Dev server with hot reload | `npm --prefix frontend run dev` |
 | UI with no database at all | `npm --prefix frontend run dev:mock` |
 | Run any SQL file | `backend/.venv/bin/python scripts/run_sql.py db/NN_name.sql` |
+| Download the breach calendar | `curl -OJ http://127.0.0.1:8000/api/forecast.ics` |
+| Subscribe to the morning brief | open <http://127.0.0.1:8000/feed/brief.xml> in a feed reader |
+| Hindi morning brief | `curl 'http://127.0.0.1:8000/api/brief?lang=hi'` |
+| Data-quality JSON | `curl http://127.0.0.1:8000/api/data-quality` |
+| Provenance registry | `curl http://127.0.0.1:8000/api/lineage` |
 | Run backend tests | `backend/.venv/bin/python -m pytest backend/tests -q` |
 | Health check | `curl http://127.0.0.1:8000/api/health` |

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
-import { useGet, fmt } from './_shared'
+import { useGet, fmt, download, toCsv } from './_shared'
 import SqlDrawer from '../components/SqlDrawer'
+import { LANGS, t } from '../i18n'
 
 // The morning brief: three actions, each traceable to one saved query.
 //
@@ -9,8 +10,15 @@ import SqlDrawer from '../components/SqlDrawer'
 // is SELECT-only). If the clipboard API is unavailable — plain http on a LAN
 // address, which is exactly how this gets demoed — it falls back to a
 // textarea + execCommand.
-export default function Briefing({ onOpenWard }) {
-  const { data, loading, error } = useGet('/brief', [])
+//
+// The language chips do not translate anything locally: they re-request the
+// brief with ?lang=, so the sentences come from the same templates the Atom
+// feed uses and the two can never disagree. Only *chrome* (headings, buttons)
+// is translated here, from i18n.js.
+const ACTION_COLUMNS = ['N', 'KIND', 'WARD_ID', 'WARD_NAME', 'TITLE', 'DETAIL', 'SQL_STEP']
+
+export default function Briefing({ onOpenWard, lang = 'en', onPickLang }) {
+  const { data, loading, error } = useGet(`/brief?lang=${lang}`, [lang])
   const [copied, setCopied] = useState('')
 
   async function copyMarkdown() {
@@ -35,27 +43,9 @@ export default function Briefing({ onOpenWard }) {
     }
   }
 
-  function download(filename, text, type) {
-    const blob = new Blob([text], { type })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = filename
-    document.body.appendChild(anchor)
-    anchor.click()
-    anchor.remove()
-    // Revoking immediately cancels the download in some browsers.
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
-  }
-
   function downloadCsv() {
-    const head = ['N', 'KIND', 'WARD_ID', 'WARD_NAME', 'TITLE', 'DETAIL', 'SQL_STEP']
-    const quote = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
-    const lines = [head.join(',')]
-    for (const a of data?.ACTIONS || []) {
-      lines.push(head.map((key) => quote(a[key])).join(','))
-    }
-    download(`morning-brief-${data?.MONTH || 'latest'}.csv`, `${lines.join('\n')}\n`, 'text/csv')
+    const body = toCsv(data?.ACTIONS || [], ACTION_COLUMNS)
+    download(`morning-brief-${data?.MONTH || 'latest'}-${lang}.csv`, body, 'text/csv')
   }
 
   if (error) return <div className="error">brief failed: {error}</div>
@@ -69,14 +59,34 @@ export default function Briefing({ onOpenWard }) {
         <p style={{ marginTop: 0 }}>{data.HEADLINE}</p>
 
         <div className="controls">
-          <button className="action" onClick={copyMarkdown}>Copy markdown</button>
+          <span className="legend-note" style={{ margin: 0 }}>{t(lang, 'brief.language')}</span>
+          <div className="chips">
+            {LANGS.map((option) => (
+              <span
+                key={option.id}
+                role="button"
+                tabIndex={0}
+                className={`chip${lang === option.id ? ' active' : ''}`}
+                onClick={() => onPickLang && onPickLang(option.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPickLang && onPickLang(option.id) }
+                }}
+              >
+                {option.label}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="controls">
+          <button className="action" onClick={copyMarkdown}>{t(lang, 'brief.copy')}</button>
           <button
             className="action"
-            onClick={() => download(`morning-brief-${data.MONTH}.md`, data.MARKDOWN || '', 'text/markdown')}
+            onClick={() => download(`morning-brief-${data.MONTH}-${lang}.md`, data.MARKDOWN || '', 'text/markdown')}
           >
-            Download .md
+            {t(lang, 'brief.download')}
           </button>
-          <button className="action" onClick={downloadCsv}>Download .csv (actions)</button>
+          <button className="action" onClick={downloadCsv}>{t(lang, 'brief.downloadCsv')}</button>
           {copied && <span className="legend-note" style={{ margin: 0 }}>{copied}</span>}
         </div>
 
@@ -88,7 +98,7 @@ export default function Briefing({ onOpenWard }) {
       </div>
 
       <div className="panel">
-        <h2>Do these three things today</h2>
+        <h2>{data.HEADINGS?.ACTIONS || 'Do these three things today'}</h2>
         <div className="cards">
           {(data.ACTIONS || []).map((action) => (
             <div className="card" key={action.N}>
@@ -117,10 +127,17 @@ export default function Briefing({ onOpenWard }) {
 
       {(data.WATCHLIST || []).length > 0 && (
         <div className="panel">
-          <h2>Watchlist</h2>
+          <h2>{data.HEADINGS?.WATCHLIST || 'Watchlist'}</h2>
           <table>
             <thead>
-              <tr><th>Rank</th><th>Ward</th><th>Risk</th><th>Worst param</th><th>High-severity complaints</th><th /></tr>
+              <tr>
+                <th>Rank</th>
+                <th>Ward</th>
+                <th>Risk</th>
+                <th>Worst param</th>
+                <th>High-severity complaints</th>
+                <th />
+              </tr>
             </thead>
             <tbody>
               {data.WATCHLIST.map((row) => (
@@ -144,7 +161,7 @@ export default function Briefing({ onOpenWard }) {
 
       <div className="panel">
         <details>
-          <summary>The brief as markdown (what Copy and Download contain)</summary>
+          <summary>{data.HEADINGS?.MARKDOWN || 'The brief as markdown (what Copy and Download contain)'}</summary>
           <div className="drawer"><pre>{data.MARKDOWN}</pre></div>
         </details>
       </div>

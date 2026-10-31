@@ -1,0 +1,7 @@
+WARDQ: 24 wards, 288,768 water samples, 15,063 WhatsApp complaints — analysed inside one Exasol Personal database on a laptop, and every number on screen traceable to the SQL that produced it.
+
+2:55, seventeen scenes, the real dashboard: the 24 × 13 risk heatmap replaying thirteen months, Ward 205 - Peenya at 75.4 with the UDF's own 35/30/15/20 weights, the 90-day z-score window, every flagged row opening its saved SQL, the probe-vs-lab disagreement, the regex complaint triage, a 30-line WhatsApp export parsed in a dry run, the weighted simulator, the three-action morning brief that leaves as .md / .csv / .ics / Atom, 97.01 % completeness with a full lineage table, 15 ms against SQLite's 96 ms on 288,768 rows, and monsoon turbidity at 5.75 NTU downstream against 2.15 upstream in the same city.
+
+Then the part most demos skip: one data node, a straight-line forecast that admits it is one, a nine-day-old file, 104 regex patterns, and 288,768 readings that are generated rather than measured. Printed inside the product, not on a slide.
+
+Live: http://localhost:8000 · db/ (9 numbered SQL files + 11 saved queries) · backend/ (FastAPI + pyexasol) · frontend/ (React + Vite + Chart.js).

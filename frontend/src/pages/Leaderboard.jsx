@@ -1,9 +1,15 @@
 import React from 'react'
 import { Bar } from 'react-chartjs-2'
 import { useGet, fmt, riskColor } from './_shared'
+import ExportCsvButton from '../components/ExportCsvButton'
 import SqlDrawer from '../components/SqlDrawer'
 
-export default function Leaderboard({ onOpenWard }) {
+const CSV_COLUMNS = [
+  'RANK_IN_MONTH', 'WARD_ID', 'WARD_NAME', 'RISK_SCORE', 'WORST_PARAM',
+  'Z_COMPONENT', 'BREACH_COMPONENT', 'SLOPE_COMPONENT', 'N_COMPLAINTS', 'N_HIGH_SEV',
+]
+
+export default function Leaderboard({ onOpenWard, lang = 'en' }) {
   const { data, loading, error } = useGet('/leaderboard?limit=10', [])
 
   const rows = data?.rows || []
@@ -31,6 +37,14 @@ export default function Leaderboard({ onOpenWard }) {
   return (
     <div className="panel">
       <h2>Worst-ward leaderboard {data ? `· ${data.month}` : ''}</h2>
+      <div className="controls">
+        <ExportCsvButton
+          filename={`wardq-leaderboard-${data?.month || 'latest'}.csv`}
+          rows={rows}
+          columns={CSV_COLUMNS}
+          lang={lang}
+        />
+      </div>
       {error && <div className="error">leaderboard failed: {error}</div>}
       {loading && <div className="loading">loading…</div>}
       {data && (

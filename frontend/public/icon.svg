@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="WardQ">
+  <!-- Source artwork for the PWA icons. A water drop over a ward grid bar: the
+       product is a measurement, so the mark is a gauge, not a droplet mascot.
+       Committed as the editable original; icon-192.png / icon-512.png are the
+       rendered copies the manifest points at. -->
+  <rect width="512" height="512" rx="96" fill="#0f1720"/>
+  <!-- the drop -->
+  <path d="M256 96c0 0-104 112-104 184a104 104 0 0 0 208 0c0-72-104-184-104-184z" fill="#38bdf8"/>
+  <path d="M256 132c0 0-76 86-76 148a76 76 0 0 0 152 0c0-62-76-148-76-148z" fill="#0b2540" opacity="0.55"/>
+  <!-- the reading inside the drop: three bars, the tallest red like the heatmap -->
+  <rect x="204" y="288" width="24" height="48" rx="6" fill="#22c55e"/>
+  <rect x="244" y="264" width="24" height="72" rx="6" fill="#f59e0b"/>
+  <rect x="284" y="232" width="24" height="104" rx="6" fill="#ef4444"/>
+  <!-- the ward baseline -->
+  <rect x="160" y="352" width="192" height="12" rx="6" fill="#e6edf3" opacity="0.85"/>
+</svg>

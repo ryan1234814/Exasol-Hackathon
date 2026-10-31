@@ -137,3 +137,43 @@ def test_watchlist_follows_the_ranking_and_stops_at_three():
     watchlist = build()["WATCHLIST"]
     assert [w["WARD_ID"] for w in watchlist] == [5, 9, 21]
     assert watchlist[0]["RISK_SCORE"] == 71.2
+
+
+# -- the language layer -------------------------------------------------------
+def test_english_output_is_unchanged_by_the_language_layer():
+    payload = build()
+    assert payload["LANG"] == "en"
+    assert payload["MARKDOWN"].startswith("# Morning brief — 2026-10")
+    assert payload["ACTIONS"][2]["DETAIL"].endswith("verify the probe before flushing.")
+
+
+def test_hindi_keeps_three_actions_and_every_number():
+    payload = build(lang="hi")
+    assert payload["LANG"] == "hi"
+    assert len(payload["ACTIONS"]) == 3
+    rank = payload["ACTIONS"][0]
+    assert "COLIFORM" in rank["DETAIL"]
+    assert "42" in rank["DETAIL"] and "18" in rank["DETAIL"]
+    assert not rank["TITLE"].startswith("Start with"), "English leaked into the Hindi brief"
+
+
+def test_hindi_markdown_carries_all_three_titles():
+    payload = build(lang="hi")
+    for action in payload["ACTIONS"]:
+        assert action["TITLE"] in payload["MARKDOWN"]
+    assert payload["MARKDOWN"].startswith("# सुबह की रिपोर्ट — 2026-10")
+    assert payload["DATA_AS_OF"] in payload["MARKDOWN"]
+
+
+def test_language_never_changes_which_ward_is_chosen():
+    english, hindi = build(), build(lang="hi")
+    assert [a["WARD_ID"] for a in english["ACTIONS"]] == [a["WARD_ID"] for a in hindi["ACTIONS"]]
+    assert [a["SQL_STEP"] for a in english["ACTIONS"]] == [a["SQL_STEP"] for a in hindi["ACTIONS"]]
+    assert [w["WARD_ID"] for w in english["WATCHLIST"]] == [w["WARD_ID"] for w in hindi["WATCHLIST"]]
+
+
+def test_an_unknown_language_falls_back_to_english():
+    payload = build(lang="fr")
+    assert payload["LANG"] == "en"
+    assert payload["ACTIONS"][0]["TITLE"].startswith("Start with")
+    assert build(lang=None)["LANG"] == "en"

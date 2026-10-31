@@ -1,8 +1,14 @@
 import React, { useMemo, useState } from 'react'
 import { useGet, fmt } from './_shared'
+import ExportCsvButton from '../components/ExportCsvButton'
 import SqlDrawer from '../components/SqlDrawer'
 
 const VERDICTS = ['', 'instrument_suspect', 'lab_confirmed', 'consistent']
+
+const CSV_COLUMNS = [
+  'SAMPLE_MONTH', 'WARD_ID', 'WARD_NAME', 'PARAM_CODE', 'SENSOR_BREACHES',
+  'LAB_BREACHES', 'CITIZEN_COMPLAINTS_THAT_MONTH', 'VERDICT',
+]
 
 const VERDICT_NOTE = {
   instrument_suspect: 'the probe breached, the laboratory did not — check the instrument',
@@ -16,7 +22,7 @@ const VERDICT_NOTE = {
 //
 // One aggregate per page open over 288k rows, measured at 15 ms on this VM —
 // that is why this reads the view directly instead of a materialized table.
-export default function Disagreements({ wardId, onOpenWard }) {
+export default function Disagreements({ wardId, onOpenWard, lang = 'en' }) {
   const [verdict, setVerdict] = useState('')
   const params = wardId ? `?ward_id=${wardId}&limit=200` : '?limit=200'
   const { data, loading, error } = useGet(`/disagreements${params}`, [wardId])
@@ -68,6 +74,12 @@ export default function Disagreements({ wardId, onOpenWard }) {
             ))}
           </div>
           {verdict && <span className="legend-note" style={{ margin: 0 }}>{VERDICT_NOTE[verdict]}</span>}
+          <ExportCsvButton
+            filename={`wardq-sensor-vs-lab-${data?.month || 'latest'}${verdict ? `-${verdict}` : ''}.csv`}
+            rows={shown}
+            columns={CSV_COLUMNS}
+            lang={lang}
+          />
         </div>
       </div>
 

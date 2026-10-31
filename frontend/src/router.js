@@ -1,4 +1,4 @@
-// Hash routing, hand-written. No router package: the whole surface is eleven
+// Hash routing, hand-written. No router package: the whole surface is twelve
 // tabs and one optional ward id, and a `hashchange` listener gives deep links
 // (#/ward/12) that survive a reload for about forty lines.
 //
@@ -7,11 +7,11 @@
 // still renders with the database down — if routing ever mapped an unknown
 // route to landing, a typo'd deep link would look like an outage.
 import { useEffect, useState } from 'react'
+import { TAB_IDS } from './tabs'
 
-export const TAB_IDS = [
-  'dashboard', 'ward', 'trend', 'anomalies', 'disagreements', 'complaints',
-  'leaderboard', 'simulator', 'brief', 'ingest', 'benchmark',
-]
+// Re-exported so existing `import { TAB_IDS } from './router'` callers keep
+// working. tabs.js is the one definition; this is only a view of it.
+export { TAB_IDS }
 
 const KNOWN = new Set(TAB_IDS)
 const FALLBACK = 'dashboard'

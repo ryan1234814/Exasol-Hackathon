@@ -57,6 +57,27 @@ Because `exapump` was never installed by a raw `exasol deploy`, SQL is run with
 > by a raw `exasol deploy`, so the kit has no record of it. Use `exasol status`
 > as the source of truth for this deployment.
 
+### What is new in v1.1 — Trust & Reach
+
+Six additions, all of them free forever: stdlib only on the backend, hand-written
+JS on the frontend, no accounts, no API keys, no new npm or uv packages, and the
+build is still SELECT-only, one origin, one port.
+
+| # | Feature | Why it is on stage |
+|---|---------|--------------------|
+| 1 | `V_DATA_QUALITY` + **Trust** tab | "3% of readings are unusable — here is the number, not a promise" |
+| 2 | SQL lineage registry + Trust tab | every figure on screen traces to a file you can run in `exakit sql` |
+| 3 | **Export CSV** on six tables | judges walk away with the data in a spreadsheet |
+| 4 | Installable PWA + offline cache | turn off Wi-Fi; the dashboard still opens, with a badge saying so |
+| 5 | Hindi UI chrome + Hindi brief | the brief a ward officer would actually read |
+| 6 | `.ics` breach calendar + Atom feed | a 90-day breach ETA lands in the officer's calendar with a 7-day alarm |
+
+Nothing new is licensed, and item 6 is the free equivalent of email/WhatsApp
+delivery: pull, not push. The four rejected shortcuts (a `vite-plugin-pwa`
+dependency, a server-side `/api/export/*.csv`, a fifth materialized table, and a
+full 11-page Hindi translation) are recorded in
+[Rejected Alternatives](#rejected-alternatives).
+
 ---
 
 ## Locked Decisions
@@ -186,23 +207,26 @@ All paths relative to `/Users/ryangeorge/exasol/` (verified empty — safe to bu
 docs/           prd.md  decisions.md  data-dictionary.md  demo-script.md
 
 db/             10_schema.sql  20_seed_dims.sql  30_generate_readings.sql
-                40_anomaly_window.sql  45_forecast_view.sql
+                40_anomaly_window.sql  45_forecast_view.sql  46_data_quality_view.sql
                 50_udf_ward_risk.lua.sql  60_materialize.sql
                 61_materialize_no_udf.sql  70_verify.sql
-                sql/*.sql (10 saved demo queries)
+                sql/*.sql (11 saved demo queries)
 
 data/           raw/whatsapp_ward_exports/*.txt  raw/sample_logs_demo.csv
                 derived/*.csv (fallback snapshots)  generated/README.md
 
 backend/        app.py  db.py  nlp_rules.py  forecast.py  brief.py
+                quality.py  calendar_feed.py  atom_feed.py
                 ingest/whatsapp_parser.py  ingest/tabular.py
                 benchmark.py  requirements.txt  tests/
 
-frontend/       index.html  vite.config.js  src/{App.jsx,api.js,devMock.js,
-                router.js,theme.js,chartSetup.js,
+frontend/       index.html  vite.config.js  public/(manifest.webmanifest, sw.js,
+                icon.svg, icon-192.png, icon-512.png)
+                src/{App.jsx,api.js,devMock.js,router.js,tabs.js,i18n.js,
+                theme.js,chartSetup.js,
                 pages/{Landing,Dashboard,WardDossier,Trend,Anomalies,
                 Disagreements,Complaints,Leaderboard,Simulator,
-                Briefing,Ingest,BenchmarkPage}.jsx,
+                Briefing,Trust,Ingest,BenchmarkPage}.jsx,
                 components/*,styles.css}
 
 scripts/        run_sql.py
@@ -306,7 +330,8 @@ CREATE OR REPLACE LUA SCALAR SCRIPT WARDQ.RISK_SCORE(
 
 ```
 10_schema → 20_seed_dims → 30_generate_readings → 40_anomaly_window
-  → 45_forecast_view → 50_udf_ward_risk → 60_materialize → 70_verify
+  → 45_forecast_view → 46_data_quality_view → 50_udf_ward_risk
+  → 60_materialize → 70_verify
 ```
 
 `45_forecast_view.sql` depends only on `WARD_DAILY` and `V_WARD_PARAM_SLOPE`, so
@@ -314,6 +339,23 @@ it can run before or after the UDF. `61_materialize_no_udf.sql` is the drop-in
 replacement for `60` when the Lua UDF is unavailable; `70_verify.sql` is re-run
 last either way. Each step is one file, so the whole pipeline is
 `for f in db/NN_*.sql; do backend/.venv/bin/python scripts/run_sql.py $f; done`.
+
+### `db/46_data_quality_view.sql` — the Trust scorecard's inputs
+
+`CREATE VIEW WARDQ.V_DATA_QUALITY`: one row per ward × parameter × month (~1,152
+rows) carrying `N_READINGS`, `N_MISSING`, `N_LAB_VERIFIED`, `N_SENSOR_ONLY`,
+`N_IMPLAUSIBLE` and the first/last sample date. It reads only `SAMPLE_LOG`,
+`PARAMETER_LIMITS` and `WARD`, and writes nothing.
+
+The **grading is deliberately not in SQL**: bands, findings and the sentences
+around them live in `backend/quality.py`, because they are a policy opinion that
+will be argued about and must be testable without a VM. This is the second
+documented exception to "reads touch the materialized layer" (see the endpoint
+section) and it reports its own `query_ms`.
+
+`N_IMPLAUSIBLE` is legitimately `0` — that is a finding, not a bug. The generator
+plants NULL results and sensor drift, not unit typos, and the view proves it
+rather than asserting it.
 
 ---
 
@@ -347,7 +389,11 @@ Lazy connection + one reconnect-on-stale attempt; per-query `time.monotonic()` t
 | `GET /api/leaderboard` | deteriorating wards by risk |
 | `GET /api/heatmap?months=13` | ward × month risk matrix in one payload (≤600 cells) for the replay slider |
 | `GET /api/disagreements?month=&ward_id=&param=&limit=` | sensor-vs-lab agreement per ward × parameter, with a derived `VERDICT` |
-| `GET /api/brief?month=` | the three-action morning brief plus its Markdown rendering |
+| `GET /api/brief?month=&lang=en\|hi` | the three-action morning brief plus its Markdown rendering, in English or Hindi (`backend/brief.py`) |
+| `GET /api/data-quality?month=` | completeness and lab coverage per ward × parameter, already graded into bands and findings |
+| `GET /api/lineage` | one row per read endpoint: the SQL step, the tables it reads, and the file that reproduces it |
+| `GET /api/forecast.ics?horizon_days=90&alarm_days=7` | the breach forecast as an importable `.ics` calendar (one all-day event per projected crossing, 7-day alarm) |
+| `GET /feed/brief.xml?month=&lang=` | the same brief as an Atom 1.0 feed, built from the same payload so feed and page cannot drift |
 | `GET /api/complaints?category=&ward_id=&q=&since=` | triage queue, `LIMIT`-paged |
 | `GET /api/summary` | header metrics + "data as of" |
 | `GET /api/sql/{step}` | the exact `db/sql/*.sql` source behind a number, whitelisted by step name |
@@ -364,6 +410,13 @@ That is one 288,768-row aggregate, measured at **15 ms** on this VM
 cheaper than maintaining a fourth summary table for a view the pipeline already
 computes. Every other endpoint reads `WARD_MONTH_RISK`, `ANOMALY_EVENT`,
 `COMPLAINT_SUMMARY`, `LOAD_RUN` or `BENCHMARK_RESULTS`.
+
+**The second documented exception** is `/api/data-quality`, which reads
+`V_DATA_QUALITY` (the same 289k rows, counted once per request). It cannot be
+materialized into the risk tables without pretending that a gap in the readings
+is a property of the score rather than of the samples — so instead of hiding the
+cost it returns `query_ms` and the Trust page prints it. If that measurement ever
+exceeds ~150 ms, the documented fallback is a `60_materialize.sql`-style table.
 
 All new read endpoints add `query_ms` (the `time.monotonic()` measurement
 `backend/db.py` already records) so the UI can show the cost of the number it is
@@ -427,8 +480,32 @@ the back button works.
 
 `src/theme.js` toggles `:root[data-theme]`, persisting to `localStorage` inside a
 `try/catch` so private-mode browsers still render. `Ctrl/Cmd-K` opens
-`components/CommandPalette.jsx`: 11 tabs plus a lazily-fetched ward list, arrow
+`components/CommandPalette.jsx`: 12 tabs plus a lazily-fetched ward list, arrow
 keys and Enter, no dependency.
+
+### One tab registry (`src/tabs.js`)
+
+The tab list used to be duplicated — `App.jsx` held the components, `router.js`
+held the ids. Adding a tab to one and not the other does not crash; the hash
+silently falls back to the dashboard, so it reads as a broken link rather than a
+bug. `TABS_META` (id + i18n label key) is now the single definition: `router.js`
+imports `TAB_IDS` from it and `App.jsx` builds its `COMPONENTS` map against the
+same ids. A tab that exists in one place and not the other is now a build-time
+reference error, not a silent fallback.
+
+### Bilingual chrome (`src/i18n.js`)
+
+`LANGS = [EN, हिं]`, one `STRINGS` table per language, and `t(lang, key, vars)`
+which never returns a raw key: an unknown language or key falls back to English,
+so a missing string degrades instead of showing `tab.trust`. `useLang()` persists
+to `localStorage` (`wardq.lang`) inside `try/catch`, exactly like `theme.js`.
+
+**The scope is explicit and stated on the page**: navigation chrome, the Trust
+page and the morning brief. The brief's *sentences* are not translated here at
+all — the chips re-request `/api/brief?lang=hi`, so the Hindi text comes from the
+same `backend/brief.py` templates the Atom feed uses. Deep data prose on the
+other nine tabs stays English, because a half-translated dashboard reads as a bug
+and a clearly scoped bilingual shell does not.
 
 ### Landing page (`Landing.jsx`)
 
@@ -457,7 +534,8 @@ nobody has acted on → what to do about it.
 | Complaints | `Complaints.jsx` | triage queue, category chips, severity sort, "rule fired" tooltip, search |
 | Leaderboard | `Leaderboard.jsx` | deteriorating wards bar |
 | Simulator | `Simulator.jsx` | four weight sliders (default 35/30/15/20). `100·Σ(wᵢcᵢ)/Σwᵢ` reproduces `RISK_SCORE` exactly at shipped weights — the page prints the measured drift, and the top three keep the stored score beside the simulated one as proof |
-| Briefing | `Briefing.jsx` | the three things to do today, chosen by `backend/brief.py` in a fixed priority order (rank → soonest crossing → instrument/complaints); watchlist, copy-Markdown, download `.md` / `.csv` — all client-side `Blob`s, no write endpoint |
+| Briefing | `Briefing.jsx` | the three things to do today, chosen by `backend/brief.py` in a fixed priority order (rank → soonest crossing → instrument/complaints); watchlist, language chips (`EN` / `हिं` → `/api/brief?lang=`), copy-Markdown, download `.md` / `.csv` — all client-side `Blob`s, no write endpoint |
+| Trust | `Trust.jsx` | "can I trust this number?": completeness, lab coverage and unusable-reading counts from `V_DATA_QUALITY` with the bands and findings decided in `backend/quality.py`; a lineage table (endpoint → SQL step → tables → the exact file, openable in place, with a copyable `run_sql.py` command); and an export panel (CSV, `.ics`, Atom URL, clear cached data). The measured `query_ms` is printed on the page |
 | Ingest | `Ingest.jsx` | drop the WhatsApp file → parse stats → classified preview |
 | Benchmark | `BenchmarkPage.jsx` | paired bars, "289k rows · N ms", replayable on stage |
 
@@ -494,6 +572,43 @@ same static bundle for a no-DB stage fallback. The production build tree-shakes
 the whole mock module because `IS_MOCK` is a compile-time `false`, so the real
 bundle pays nothing for it.
 
+`devMock.js` also answers the two newer JSON paths (`/api/data-quality`,
+`/api/lineage`) and the `?lang=hi` brief, so the Trust page and the Hindi brief
+render in mock mode too. Only the `.ics` and Atom links are marked "server-only"
+there: they are file responses, not JSON, and faking them would be a lie.
+
+### Export (`components/ExportCsvButton.jsx`)
+
+One button, used on Leaderboard, Anomalies, Disagreements, Complaints, Briefing
+and Trust. `download()` and `toCsv()` live in `pages/_shared.js` (plain JS, so no
+JSX in a `.js` file); `toCsv` quotes every field and doubles embedded quotes per
+RFC 4180. It is entirely client-side, so it works in `VITE_MOCK=1`, needs no
+endpoint, and adds nothing to the SQL whitelist.
+
+### Installable and offline (`public/sw.js`)
+
+A hand-written service worker (~100 lines) rather than `vite-plugin-pwa` or
+Workbox, because the project's rule is no new dependencies and the policy is one
+sentence: **network first for navigation and `/api`, stale-while-revalidate for
+assets**.
+
+- `install` precaches `/`, `/index.html`, the manifest and the two icons —
+  deliberately *not* the hashed bundle, so a rebuild cannot leave a precache entry
+  pointing at a deleted file;
+- `activate` deletes every cache whose name does not start with the current
+  version, which is also the repair path for a worker that got stuck;
+- non-`GET` requests pass straight through, so `/api/ingest/*` and `/api/classify`
+  are never cached and no write is ever faked;
+- a failed `/api` read falls back to the last successful response, and the topbar
+  shows an **offline badge** so a stale cached view does not look like a hang;
+- registration is `import.meta.env.PROD` only and sits outside React (StrictMode
+  double-invokes effects), and it is fire-and-forget — a browser that refuses the
+  worker still gets the app.
+
+The demo: turn off Wi-Fi, reload, and the landing page, the dashboard and the last
+Trust numbers still render with the badge on. If a bundle ever looks stale mid-demo,
+**Trust → Clear cached data** empties `caches.keys()` and reloads — no DevTools.
+
 ---
 
 ## Demo Script (5 min, `docs/demo-script.md`)
@@ -504,11 +619,12 @@ bundle pays nothing for it.
 4. "But the lab says compliant" → Disagreements tab → the pH probe nobody has verified
 5. Complaints tab shows the "kala paani / black water" messages
 6. Paste `db/sql/sensor_vs_lab.sql` live into `exakit sql` and get the same number (the kit's ask → inspect-SQL → run → validate → rerun loop)
-7. Briefing tab → three actions, copy the Markdown
+7. Briefing tab → three actions, copy the Markdown, switch to `हिं` and copy it again
 8. Simulator → drag a weight, watch the ranking move, reset
-9. Leaderboard
+9. Leaderboard → **Export CSV** and hand the judge the file
 10. `/api/classify` on a judge-supplied sentence
 11. Benchmark slide
+12. **Trust tab** → "can I trust this number?": the completeness percentage, the findings the bands produce, and the lineage row that opens the exact SQL. Then **Breach calendar (.ics)** → open it in Calendar, and Trust → **Clear cached data** to show the offline cache is real and removable
 
 ### `scripts/run_demo.sh` — the stage artifact (not yet written)
 
@@ -547,7 +663,7 @@ No auth, no multi-user, no real-time WhatsApp gateway, no LLM APIs, no maps/geo,
 
 ```bash
 backend/.venv/bin/python -m pytest backend/tests -q
-# 143 passed, 16 skipped — the skips are the @requires_db live assertions,
+# 199 passed, 17 skipped — the skips are the @requires_db live assertions,
 # because the local Exasol database is not installed on this machine.
 ```
 
@@ -556,14 +672,20 @@ backend/.venv/bin/python -m pytest backend/tests -q
 | `test_rules.py` | every rule fires on a known sentence; unknown → `other`; severity ordering | no |
 | `test_parser.py` | both timestamp forms, `Media omitted`, multi-line, header/footer lines, non-English (Hinglish/romanised Marathi-Kannada) lines, the deliberately messy fixture | no |
 | `test_forecast.py` | upward drift with an upper limit and downward drift with a lower limit (chlorine); zero/`None` slope; already-over-limit; horizon overflow; band widens monotonically and is `None` below 7 samples; confidence tiers; `breach_date` arithmetic | no |
-| `test_brief.py` | exactly three actions; priority order; instrument-suspect beats complaints; every number in the text appears in the inputs; empty inputs produce the "no signal" line rather than a fabricated ward; markdown contains all three titles | no |
-| `test_sql_snapshots.py` | the 10 `db/sql/*.sql` files exist and obey the single-statement contract (`SELECT`, no `;`, a literal `LIMIT`), the 9 ODS files are present in pipeline order, and — with a DB — each demo query returns rows, `V_WARD_FORECAST` has 96 rows, and the SQL countdown agrees with `backend/forecast.py` within a day | partly |
+| `test_brief.py` | exactly three actions; priority order; instrument-suspect beats complaints; every number in the text appears in the inputs; empty inputs produce the "no signal" line rather than a fabricated ward; markdown contains all three titles; **`lang="hi"` still returns three actions and keeps every input number; an unknown `lang` falls back to English; `lang="en"` is byte-identical to before** | no |
+| `test_quality.py` | completeness/lab-coverage arithmetic; band boundaries at 0.98 / 0.95; empty input yields the `no data` finding and no fabricated grade; every finding's `DETAIL` quotes a number that exists in the inputs | no |
+| `test_calendar_feed.py` | `\r\n` everywhere and no bare `\n`; every physical line ≤ 75 **octets** after folding; one `VEVENT` per deteriorating item only; UID stable across two builds; `STATUS:CONFIRMED`; comma/semicolon escaping in `SUMMARY`; zero items still yields a valid `VCALENDAR` | no |
+| `test_atom_feed.py` | parses with `xml.etree.ElementTree`; three entries; ids stable across builds; `&`/`<` in a ward name are escaped; `updated` falls back when `DATA_AS_OF` is `None` | no |
+| `test_lineage.py` | every `LINEAGE[i]["SQL_STEP"]` is a key of `SQL_WHITELIST`; every whitelisted step resolves to a file that exists on disk; no duplicate `ENDPOINT`; ≥12 endpoints | no |
+| `test_sql_snapshots.py` | the 11 `db/sql/*.sql` files exist and obey the single-statement contract (`SELECT`, no `;`, a literal `LIMIT`), the 10 ODS files are present in pipeline order (including `46_data_quality_view.sql`), and — with a DB — each demo query returns rows, `V_WARD_FORECAST` has 96 rows, and the SQL countdown agrees with `backend/forecast.py` within a day | partly |
 
 Manual checks:
 
-- `db/70_verify.sql` — `DESCRIBE` asserts every table and column name after load (catches the quoted-identifier trap)
+- `db/70_verify.sql` — `DESCRIBE` asserts every table and column name after load (catches the quoted-identifier trap), and checks 16–17 assert `V_DATA_QUALITY` has ≥1000 rows with a non-zero `N_MISSING` (a view that returns zeros would be the bug)
 - Run the pipeline twice → identical results (determinism)
-- `npm --prefix frontend run build`, then `VITE_MOCK=1` and walk all **11** tabs; reload `#/ward/12` directly; print → PDF from the case file
+- `npm --prefix frontend run build` **and** `npm --prefix frontend run build:mock`, then walk all **12** tabs in each; reload `#/ward/12` directly; print → PDF from the case file
+- Trust tab → **Export CSV** opens in a spreadsheet; **Breach calendar (.ics)** opens in Calendar with a 7-day alarm; the Atom URL parses in a reader
+- DevTools → Application → Service Workers → **offline** → reload: the landing page and dashboard still render and the topbar shows the offline badge. Trust → **Clear cached data** → reload recovers
 - Each `db/sql/*.sql` is a single statement, so it also runs through `exakit sql --file`
 
 ---
@@ -585,6 +707,11 @@ Manual checks:
 | R11 | Slow network blocks a late npm/uv install | Install Oct 23, commit `package-lock.json`, keep caches warm |
 | R12 | Judges catch an inflated perf claim (single node) | Report `node_count`; every on-screen number from `BENCHMARK_RESULTS`; claim only columnar scan + pushdown + pre-aggregation + result cache. `DISTRIBUTED BY` is not even in the DDL, so it cannot be misclaimed |
 | R13 | Licence wording | Personal = free, no artificial data cap, personal-use EULA; hackathon/demo use fine, no commercial-deployment claim (`THIRD_PARTY_NOTICES.md`) |
+| R14 | Service worker serves a stale bundle mid-demo | network-first for navigation and `/api`; version const bumped per release; **Clear cached data** button on Trust; registered only in `PROD`; no blind precache of hashed assets |
+| R15 | The 289k-row quality view breaks the sub-second claim | the endpoint returns `query_ms` and the page prints it; documented fallback is a materialized table if it ever exceeds ~150 ms |
+| R16 | Exasol dialect traps in the new view (`COMMENT ON VIEW`, `DATE_TRUNC`, `DISTRIBUTED BY`) | `COMMENT IS` on the `CREATE VIEW`, month via `SUBSTR(CAST(…))`, no distribution clauses — all three are already-burned rules in this repo |
+| R17 | `.ics` rejected by Calendar | tests pin CRLF, octet folding and property escaping; dates come from `LAST_DATE`, not wall-clock, so the file is reproducible |
+| R18 | Hindi strings drift from the English payload | `test_brief.py` asserts three actions and every input number survive in both languages; `t()` falls back to English, never to a raw key |
 
 ---
 

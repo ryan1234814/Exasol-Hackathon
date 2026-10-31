@@ -41,13 +41,13 @@ requires_db = pytest.mark.skipif(not database_up(),
 
 
 # -- static: these always run -------------------------------------------------
-def test_the_ten_demo_queries_exist():
+def test_the_saved_demo_queries_exist():
     names = {p.name for p in DEMO_QUERIES}
     assert names == {
         "latest_risk.sql", "monsoon_turbidity.sql", "outbreak_detection.sql",
         "deteriorating_wards.sql", "complaint_vs_lab_disagreement.sql",
         "complaint_category_mix.sql", "forecast_eta.sql", "sensor_vs_lab.sql",
-        "ward_month_matrix.sql", "morning_brief.sql"}
+        "ward_month_matrix.sql", "morning_brief.sql", "data_quality.sql"}
 
 
 @pytest.mark.parametrize("path", DEMO_QUERIES, ids=lambda p: p.name)
@@ -79,6 +79,7 @@ def test_the_ods_layer_files_are_present_and_ordered():
     db_dir = SQL_DIR.parent
     for expected in ("10_schema.sql", "20_seed_dims.sql", "30_generate_readings.sql",
                      "40_anomaly_window.sql", "45_forecast_view.sql",
+                     "46_data_quality_view.sql",
                      "50_udf_ward_risk.lua.sql",
                      "60_materialize.sql", "61_materialize_no_udf.sql", "70_verify.sql"):
         assert (db_dir / expected).is_file(), f"missing {expected}"

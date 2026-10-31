@@ -53,3 +53,33 @@ export function riskColor(risk) {
   const c = a.map((v, i) => Math.round(v + (b[i] - v) * local))
   return `rgb(${c[0]},${c[1]},${c[2]})`
 }
+
+// Downloads happen in the browser, never on the server: the whole build is
+// SELECT-only, so there is no endpoint that writes a file, and the page already
+// holds every row it is about to export.
+export function download(filename, text, type) {
+  const blob = new Blob([text], { type })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  // Revoking immediately cancels the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+// RFC 4180: quote every field, double the quotes inside. `columns` entries are
+// either a key string or {key, label}; the label only affects the header row.
+// Quoting everything unconditionally sidesteps the comma/semicolon/newline
+// argument entirely, at the cost of a slightly larger file.
+export function toCsv(rows, columns) {
+  const cols = (columns || []).map((c) => (typeof c === 'string' ? { key: c, label: c } : c))
+  const quote = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const lines = [cols.map((c) => quote(c.label)).join(',')]
+  for (const row of rows || []) {
+    lines.push(cols.map((c) => quote(row[c.key])).join(','))
+  }
+  return `${lines.join('\n')}\n`
+}

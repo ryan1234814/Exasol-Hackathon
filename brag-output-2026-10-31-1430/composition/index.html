@@ -1,0 +1,1507 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>WARDQ — Ward-Level Water Quality &amp; Complaint Triage</title>
+    <script src="assets/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg: #0f1720;
+        --panel: #17222e;
+        --panel2: #1e2b3a;
+        --ink: #e6edf3;
+        --muted: #8ba0b3;
+        --line: #26384a;
+        --accent: #38bdf8;
+        --ok: #4ade80;
+        --warn: #f59e0b;
+        --bad: #ef4444;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: var(--bg); }
+      body {
+        color: var(--ink);
+        font-family: system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: radial-gradient(1200px 700px at 18% -8%, #16283c 0%, rgba(22, 40, 60, 0) 62%),
+                    radial-gradient(900px 620px at 92% 108%, #122b3f 0%, rgba(18, 43, 63, 0) 60%),
+                    linear-gradient(168deg, #081120 0%, var(--bg) 46%, #0d1f33 100%);
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        padding: 104px 100px 92px;
+        display: flex;
+        flex-direction: column;
+      }
+      .r { opacity: 0; }
+
+      /* ---- persistent chrome ---- */
+      #chrome {
+        position: absolute;
+        top: 38px;
+        left: 100px;
+        right: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 15px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      #chrome .brand { display: flex; align-items: center; gap: 12px; color: var(--ink); font-weight: 700; letter-spacing: 0.3em; }
+      #chrome .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 14px rgba(74, 222, 128, 0.8); }
+      #chrome .meta { display: flex; gap: 26px; }
+      #chrome .meta b { color: var(--accent); font-weight: 600; }
+      #progress-track { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(38, 56, 74, 0.55); }
+      #progress-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #1d4ed8, var(--accent) 55%, #818cf8); transform-origin: 0% 50%; }
+      #glow {
+        position: absolute;
+        left: 50%;
+        top: 54%;
+        width: 1500px;
+        height: 760px;
+        margin: -380px 0 0 -750px;
+        border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(56, 189, 248, 0.18), rgba(56, 189, 248, 0));
+        pointer-events: none;
+      }
+
+      /* ---- type ---- */
+      .kicker { font-size: 17px; letter-spacing: 0.26em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+      .h1 { font-size: 78px; line-height: 1.04; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
+      .h2 { font-size: 44px; line-height: 1.1; font-weight: 750; letter-spacing: -0.02em; margin: 0; }
+      .lede { font-size: 25px; line-height: 1.5; color: var(--muted); margin: 0; }
+      .small { font-size: 16px; line-height: 1.45; color: var(--muted); }
+      .mono { font-family: ui-monospace, monospace; }
+      .accent { color: var(--accent); }
+      .warn { color: var(--warn); }
+      .bad { color: #f87171; }
+      .ok { color: var(--ok); }
+
+      /* ---- cards ---- */
+      .card { background: linear-gradient(180deg, #1a2733, var(--panel)); border: 1px solid var(--line); border-radius: 16px; }
+      .card-h { font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: 650; }
+      .chip {
+        display: inline-flex; align-items: center; gap: 8px;
+        border-radius: 999px; padding: 5px 14px;
+        font-size: 15px; font-weight: 650; border: 1px solid rgba(56, 189, 248, 0.35);
+        color: var(--accent); background: rgba(56, 189, 248, 0.08);
+      }
+      .chip--warn { color: #fcd34d; border-color: rgba(245, 158, 11, 0.45); background: rgba(245, 158, 11, 0.12); }
+      .chip--bad { color: #fca5a5; border-color: rgba(239, 68, 68, 0.45); background: rgba(239, 68, 68, 0.12); }
+      .chip--ok { color: #86efac; border-color: rgba(34, 197, 94, 0.45); background: rgba(34, 197, 94, 0.12); }
+
+      /* ---- scene 1 ---- */
+      #s1 { justify-content: center; }
+      #s1 .spark { position: absolute; left: 0; right: 0; bottom: 150px; height: 320px; opacity: 0.42; }
+      #s1 .l1 { font-size: 92px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+      #s1 .l2 { font-size: 92px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; margin-top: 22px; color: var(--warn); }
+      #s1 .foot { margin-top: 34px; font-size: 20px; color: var(--muted); letter-spacing: 0.04em; }
+
+      /* ---- scene 2 ---- */
+      #s2 { align-items: center; text-align: center; justify-content: center; }
+      #s2 .badge { font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 999px; padding: 6px 18px; }
+      #s2 .h1 { max-width: 1300px; margin: 26px 0 22px; }
+      #s2 .lede { max-width: 1050px; }
+      #s2 .stats { display: flex; gap: 18px; margin-top: 46px; }
+      #s2 .stat { width: 268px; padding: 18px 20px; text-align: left; }
+      #s2 .stat .v { font-size: 34px; font-weight: 800; color: var(--accent); }
+      #s2 .stat .l { font-size: 15px; color: var(--muted); margin-top: 4px; }
+
+      /* ---- scene 3 ---- */
+      #s3 .grid { display: grid; grid-template-columns: 640px 1fr; gap: 56px; margin-top: 34px; flex: 1; }
+      #s3 .stack { display: flex; flex-direction: column; gap: 14px; }
+      #s3 .row { display: flex; align-items: baseline; justify-content: space-between; padding: 16px 20px; }
+      #s3 .row .k { font-size: 17px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+      #s3 .row .v { font-size: 20px; color: var(--ink); }
+      #s3 .pipes { display: flex; flex-wrap: wrap; gap: 12px; align-content: flex-start; }
+      #s3 .pipe { font-size: 17px; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--line); background: rgba(30, 43, 58, 0.7); color: var(--ink); font-family: ui-monospace, monospace; }
+      #s3 .pipe.hot { border-color: rgba(56, 189, 248, 0.55); color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+      #s3 .foot { margin-top: 26px; font-size: 21px; color: var(--muted); }
+
+      /* ---- scene 4 ---- */
+      #s4 .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin: 26px 0 22px; }
+      #s4 .kpi { padding: 14px 18px; }
+      #s4 .kpi .n { font-size: 32px; font-weight: 800; }
+      #s4 .kpi .l { font-size: 14px; color: var(--muted); margin-top: 2px; }
+      #s4 .kpi.is-worst .n { color: #f87171; }
+      #s4 .body { display: grid; grid-template-columns: 430px 1fr; gap: 26px; flex: 1; }
+      #s4 .side { display: flex; flex-direction: column; gap: 16px; }
+      #s4 .worst { padding: 22px; }
+      #s4 .worst .name { font-size: 27px; font-weight: 750; margin-top: 6px; }
+      #s4 .worst .score { font-size: 62px; font-weight: 800; color: #f87171; line-height: 1; margin-top: 10px; }
+      #s4 .worst .row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+      #s4 .replay { padding: 20px 22px; }
+      #s4 .track { position: relative; height: 8px; border-radius: 99px; background: #0e1a26; border: 1px solid var(--line); margin: 18px 0 12px; }
+      #s4 .track .fill { position: absolute; inset: 0; width: 0%; border-radius: 99px; background: linear-gradient(90deg, #1d4ed8, var(--accent)); transform-origin: 0% 50%; }
+      #s4 .track .knob { position: absolute; top: -7px; left: 0%; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.18); }
+      #s4 .replay .meta { display: flex; justify-content: space-between; font-size: 16px; color: var(--muted); }
+      #s4 .replay .month { color: var(--ink); font-family: ui-monospace, monospace; font-size: 18px; }
+      #s4 .hm-card { padding: 20px 22px 16px; display: flex; flex-direction: column; }
+      #s4 .hm-head { display: flex; justify-content: space-between; align-items: center; }
+      #s4 .legend { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+      #s4 .legend .bar { width: 190px; height: 10px; border-radius: 99px; background: linear-gradient(90deg, #14532d, #f59e0b 55%, #ef4444); }
+      #s4 .hm-wrap { position: relative; margin-top: 14px; flex: 1; min-height: 0; }
+      #s4 .heatmap { display: grid; grid-template-columns: 78px repeat(24, 1fr); grid-auto-rows: 1fr; gap: 4px; height: 100%; }
+      #s4 .hm-month { font-size: 13px; color: var(--muted); font-family: ui-monospace, monospace; display: flex; align-items: center; }
+      #s4 .hm-cell { height: 100%; min-height: 8px; border-radius: 4px; }
+      #s4 .hm-ward { font-size: 12px; color: var(--muted); text-align: center; font-family: ui-monospace, monospace; }
+      #s4 #playhead { position: absolute; left: 82px; right: 0; top: 0; height: 3px; background: var(--accent); box-shadow: 0 0 16px rgba(56, 189, 248, 0.9); opacity: 0; }
+
+      /* ---- scene 5 ---- */
+      #s5 .top { display: grid; grid-template-columns: 420px 520px 1fr; gap: 22px; margin-top: 24px; }
+      #s5 .who { padding: 24px; }
+      #s5 .who .id { font-size: 15px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+      #s5 .who .name { font-size: 28px; font-weight: 750; margin-top: 6px; line-height: 1.15; }
+      #s5 .who .score { font-size: 76px; font-weight: 800; line-height: 1; color: #f87171; margin: 14px 0 4px; }
+      #s5 .who .cap { font-size: 16px; color: var(--muted); }
+      #s5 .bars { padding: 24px; }
+      #s5 .bar-row { margin-top: 16px; }
+      #s5 .bar-label { display: flex; justify-content: space-between; font-size: 16px; }
+      #s5 .bar-label .w { color: var(--muted); font-family: ui-monospace, monospace; }
+      #s5 .bar-track { height: 12px; border-radius: 99px; background: #0e1a26; border: 1px solid var(--line); margin-top: 7px; overflow: hidden; }
+      #s5 .bar-fill { height: 100%; width: 100%; border-radius: 99px; background: linear-gradient(90deg, #38bdf8, #818cf8); transform-origin: 0% 50%; }
+      #s5 .spark { padding: 24px; }
+      #s5 .spark svg { display: block; width: 100%; height: 210px; }
+      #s5 .bottom { display: grid; grid-template-columns: 1fr 470px; gap: 22px; margin-top: 22px; flex: 1; }
+      #s5 .fc { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 20px 22px; }
+      #s5 .fc .cell { border-left: 2px solid var(--line); padding-left: 14px; }
+      #s5 .fc .p { font-size: 15px; letter-spacing: 0.1em; color: var(--muted); }
+      #s5 .fc .v { font-size: 24px; font-weight: 750; margin-top: 6px; }
+      #s5 .fc .s { font-size: 14px; color: var(--muted); margin-top: 4px; }
+      #s5 .next { padding: 22px; }
+      #s5 .next ol { margin: 12px 0 0; padding-left: 20px; font-size: 17px; line-height: 1.5; }
+      #s5 .next li { margin-bottom: 9px; }
+      #s5 .next .btn { display: inline-block; margin-top: 8px; padding: 9px 18px; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.5); color: var(--accent); font-size: 16px; font-weight: 650; }
+
+      /* ---- scene 6 ---- */
+      #s6 .body { display: grid; grid-template-columns: 1fr 380px; gap: 28px; margin-top: 26px; flex: 1; }
+      #s6 .chart { padding: 24px; display: flex; flex-direction: column; }
+      #s6 .chart svg { width: 100%; flex: 1; }
+      #s6 .notes { display: flex; flex-direction: column; gap: 14px; }
+      #s6 .note { padding: 18px 20px; }
+      #s6 .note .t { font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+      #s6 .note .v { font-size: 21px; margin-top: 6px; }
+
+      /* ---- scene 7 ---- */
+      #s7 .body { display: grid; grid-template-columns: 1fr; margin-top: 24px; flex: 1; position: relative; }
+      #s7 table { width: 100%; border-collapse: collapse; font-size: 18px; }
+      #s7 th { text-align: left; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+      #s7 td { padding: 13px 16px; border-bottom: 1px solid rgba(38, 56, 74, 0.65); }
+      #s7 tr.pick td { background: rgba(56, 189, 248, 0.1); }
+      #s7 .sev { font-weight: 700; color: #fca5a5; }
+      #s7 #drawer { position: absolute; right: 0; bottom: 0; width: 760px; padding: 22px 24px; background: #0d1a26; border: 1px solid rgba(56, 189, 248, 0.45); border-radius: 16px; opacity: 0; }
+      #s7 #drawer .sql { font-family: ui-monospace, monospace; font-size: 16px; line-height: 1.55; color: #cbd5e1; white-space: pre; margin-top: 12px; }
+      #s7 #drawer .cmd { margin-top: 14px; font-family: ui-monospace, monospace; font-size: 14px; color: var(--accent); }
+      #s7 #cursor { position: absolute; width: 20px; height: 24px; border-radius: 3px; background: var(--accent); opacity: 0; }
+
+      /* ---- scene 8 ---- */
+      #s8 .verdicts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 26px 0 22px; }
+      #s8 .v { padding: 20px 22px; }
+      #s8 .v .n { font-size: 30px; font-weight: 800; }
+      #s8 .v .k { font-size: 19px; font-family: ui-monospace, monospace; margin-top: 4px; }
+      #s8 .v .d { font-size: 15px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+      #s8 table { width: 100%; border-collapse: collapse; font-size: 18px; }
+      #s8 th { text-align: left; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 10px 14px; border-bottom: 1px solid var(--line); }
+      #s8 td { padding: 11px 14px; border-bottom: 1px solid rgba(38, 56, 74, 0.6); }
+      #s8 .big { font-size: 30px; font-weight: 750; margin-top: 8px; }
+
+      /* ---- scene 9 ---- */
+      #s9 .msgs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 26px; }
+      #s9 .msg { padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+      #s9 .msg .txt { font-size: 21px; line-height: 1.45; }
+      #s9 .msg .ev { font-family: ui-monospace, monospace; font-size: 14px; color: var(--muted); }
+      #s9 .msg .tags { display: flex; gap: 8px; flex-wrap: wrap; }
+      #s9 .foot { margin-top: 26px; display: flex; justify-content: space-between; align-items: center; }
+      #s9 .foot .l { font-size: 20px; color: var(--muted); }
+      #s9 .field { margin-top: 26px; display: flex; align-items: center; gap: 14px; padding: 16px 20px; width: 860px; }
+      #s9 .field .q { font-size: 20px; }
+      #s9 .field .caret { width: 2px; height: 24px; background: var(--accent); }
+
+      /* ---- scene 10 ---- */
+      #s10 .body { display: grid; grid-template-columns: 640px 1fr; gap: 26px; margin-top: 26px; flex: 1; }
+      #s10 .drop { padding: 24px; }
+      #s10 .file { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px dashed rgba(56, 189, 248, 0.45); border-radius: 12px; font-family: ui-monospace, monospace; font-size: 17px; }
+      #s10 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; }
+      #s10 .stat { padding: 14px 16px; border-radius: 12px; background: rgba(30, 43, 58, 0.6); border: 1px solid var(--line); }
+      #s10 .stat .n { font-size: 27px; font-weight: 800; }
+      #s10 .stat .l { font-size: 14px; color: var(--muted); margin-top: 2px; }
+      #s10 .mix { padding: 24px; }
+      #s10 .mix-row { margin-top: 18px; }
+      #s10 .mix-top { display: flex; justify-content: space-between; font-size: 17px; }
+      #s10 .mix-track { height: 12px; border-radius: 99px; background: #0e1a26; border: 1px solid var(--line); margin-top: 8px; overflow: hidden; }
+      #s10 .mix-fill { height: 100%; width: 100%; border-radius: 99px; background: linear-gradient(90deg, #38bdf8, #818cf8); transform-origin: 0% 50%; }
+      #s10 .stamp { margin-top: 22px; font-size: 18px; color: var(--muted); border-left: 2px solid rgba(56, 189, 248, 0.6); padding-left: 16px; }
+
+      /* ---- scene 11 ---- */
+      #s11 .body { display: grid; grid-template-columns: 1fr 620px; gap: 26px; margin-top: 26px; flex: 1; }
+      #s11 .lb { padding: 24px; }
+      #s11 .lb-row { display: grid; grid-template-columns: 24px 300px 1fr 70px; align-items: center; gap: 14px; margin-top: 20px; font-size: 17px; }
+      #s11 .lb-row .rk { color: var(--muted); font-family: ui-monospace, monospace; }
+      #s11 .lb-row .track { height: 12px; border-radius: 99px; background: #0e1a26; border: 1px solid var(--line); overflow: hidden; }
+      #s11 .lb-row .fill { display: block; height: 100%; width: 100%; border-radius: 99px; background: linear-gradient(90deg, #f59e0b, #ef4444); transform-origin: 0% 50%; }
+      #s11 .lb-row .val { text-align: right; font-family: ui-monospace, monospace; }
+      #s11 .sim { padding: 24px; display: flex; flex-direction: column; }
+      #s11 .slider { margin-top: 18px; }
+      #s11 .slider .top { display: flex; justify-content: space-between; font-size: 16px; }
+      #s11 .slider .track { position: relative; height: 10px; border-radius: 99px; background: #0e1a26; border: 1px solid var(--line); margin-top: 8px; }
+      #s11 .slider .fill { position: absolute; inset: 0; width: 0%; border-radius: 99px; background: linear-gradient(90deg, #38bdf8, #818cf8); }
+      #s11 .slider .knob { position: absolute; top: -6px; left: 0%; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); }
+      #s11 .formula { margin-top: 22px; font-family: ui-monospace, monospace; font-size: 19px; color: var(--ink); padding: 14px 16px; border-radius: 12px; background: rgba(30, 43, 58, 0.6); border: 1px solid var(--line); }
+      #s11 .drift { margin-top: 14px; font-size: 17px; color: var(--muted); }
+
+      /* ---- scene 12 ---- */
+      #s12 .body { display: grid; grid-template-columns: 1fr 420px; gap: 28px; margin-top: 24px; flex: 1; }
+      #s12 .actions { display: flex; flex-direction: column; gap: 14px; flex: 1; }
+      #s12 .action { display: flex; align-items: center; gap: 18px; padding: 22px; flex: 1; }
+      #s12 .action .num { font-size: 34px; font-weight: 800; color: var(--accent); line-height: 1; width: 34px; }
+      #s12 .action .t { font-size: 21px; font-weight: 700; }
+      #s12 .action .d { font-size: 16px; color: var(--muted); margin-top: 5px; line-height: 1.4; }
+      #s12 .side { display: flex; flex-direction: column; gap: 16px; }
+      #s12 .panel { padding: 20px 22px; }
+      #s12 .langs { display: flex; gap: 10px; margin-top: 12px; }
+      #s12 .lang { padding: 7px 18px; border-radius: 999px; border: 1px solid var(--line); font-size: 17px; color: var(--muted); }
+      #s12 .lang.on { border-color: rgba(56, 189, 248, 0.6); color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+      #s12 .reach { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+      #s12 .reach span { font-size: 16px; font-family: ui-monospace, monospace; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; background: rgba(30, 43, 58, 0.55); }
+
+      /* ---- scene 13 ---- */
+      #s13 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 24px 0 20px; }
+      #s13 .kpi { padding: 16px 18px; }
+      #s13 .kpi .n { font-size: 34px; font-weight: 800; }
+      #s13 .kpi .l { font-size: 14px; color: var(--muted); margin-top: 2px; }
+      #s13 table { width: 100%; border-collapse: collapse; font-size: 17px; }
+      #s13 th { text-align: left; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 10px 14px; border-bottom: 1px solid var(--line); }
+      #s13 td { padding: 11px 14px; border-bottom: 1px solid rgba(38, 56, 74, 0.6); font-family: ui-monospace, monospace; font-size: 15px; }
+      #s13 td.plain { font-family: system-ui, sans-serif; font-size: 17px; }
+      #s13 .foot { margin-top: 18px; font-size: 18px; color: var(--muted); }
+
+      /* ---- scene 14 ---- */
+      #s14 .groups { display: flex; flex-direction: column; gap: 18px; margin-top: 26px; flex: 1; }
+      #s14 .group { padding: 20px 24px; }
+      #s14 .group .g-h { display: flex; justify-content: space-between; align-items: baseline; }
+      #s14 .group .g-t { font-size: 20px; font-weight: 700; }
+      #s14 .group .g-s { font-size: 15px; color: var(--muted); }
+      #s14 .pair { display: grid; grid-template-columns: 150px 1fr 120px; align-items: center; gap: 16px; margin-top: 12px; }
+      #s14 .pair .eng { font-size: 15px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+      #s14 .pair .track { height: 16px; border-radius: 6px; background: #0e1a26; border: 1px solid var(--line); overflow: hidden; }
+      #s14 .pair .fill { display: block; height: 100%; width: 100%; transform-origin: 0% 50%; border-radius: 6px; }
+      #s14 .pair .fill.ex { background: linear-gradient(90deg, #0ea5e9, #38bdf8); }
+      #s14 .pair .fill.other { background: linear-gradient(90deg, #475569, #8ba0b3); }
+      #s14 .pair .ms { text-align: right; font-family: ui-monospace, monospace; font-size: 19px; }
+      #s14 .caveat { margin-top: 18px; font-size: 17px; color: var(--muted); }
+
+      /* ---- scene 15 ---- */
+      #s15 { justify-content: center; }
+      #s15 .big { font-size: 76px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+      #s15 .big .two { color: var(--accent); }
+      #s15 .offline { display: flex; align-items: center; gap: 14px; margin-top: 24px; }
+      #s15 .free { margin-top: 26px; font-size: 22px; color: var(--muted); }
+      #s15 .free b { color: var(--ink); font-weight: 650; }
+      #s15 .end { margin-top: 52px; display: flex; align-items: flex-end; justify-content: space-between; }
+      #s15 .mark { font-size: 96px; font-weight: 800; letter-spacing: 0.22em; color: var(--ink); }
+      #s15 .mark .tld { color: var(--accent); }
+      #s15 .sig { text-align: right; font-size: 18px; color: var(--muted); line-height: 1.6; }
+
+      /* ---- density fixes ---- */
+      #s3 .grid { align-items: start; }
+      #s3 .strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 26px; }
+      #s3 .mini { padding: 18px 20px; }
+      #s3 .mini .t { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+      #s3 .mini .v { font-size: 19px; line-height: 1.35; margin-top: 7px; }
+
+      #s4 .payload { padding: 20px 22px; }
+      #s4 .pl { display: flex; justify-content: space-between; font-size: 17px; margin-top: 11px; color: var(--muted); }
+      #s4 .pl b { font-family: ui-monospace, monospace; font-weight: 600; color: var(--ink); }
+
+      #s5 .bottom { align-content: start; align-items: start; }
+
+      #s7 .body { align-content: start; align-items: start; }
+      #s7 .pick td { position: relative; }
+      #s7 #cursor { position: absolute; right: 16px; top: 50%; margin-top: -11px; width: 18px; height: 22px; background: var(--accent); opacity: 0; clip-path: polygon(0 0, 0 100%, 26% 76%, 44% 100%, 60% 92%, 42% 68%, 100% 64%); }
+
+      #s10 .body { align-items: stretch; }
+      #s10 .drop, #s10 .mix { display: flex; flex-direction: column; }
+      #s10 .drop .stats { flex: 1; align-content: center; }
+      #s10 .mix .mix-row { flex: 1; display: flex; flex-direction: column; justify-content: center; margin-top: 0; }
+      #s10 .drop .stats { margin-top: 0; }
+      #s10 .mix-track { height: 16px; }
+
+      #s12 .md { margin-top: 22px; padding: 18px 24px; }
+      #s12 .md .ln { font-family: ui-monospace, monospace; font-size: 17px; color: #cbd5e1; padding: 8px 0; border-bottom: 1px solid rgba(38, 56, 74, 0.5); }
+      #s12 .md .ln:last-child { border-bottom: 0; }
+
+      #s13 .exports { display: flex; gap: 12px; margin-top: 22px; }
+      #s13 .exports span { font-size: 17px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; background: rgba(30, 43, 58, 0.55); color: var(--ink); }
+
+      #s14 .groups { justify-content: center; }
+
+      #s5 .top { flex: 3; min-height: 0; }
+      #s5 .bottom { flex: 2; min-height: 0; }
+      #s5 .fc { align-items: center; }
+      #s5 .next { display: flex; flex-direction: column; justify-content: center; }
+      #s5 .spark { display: flex; flex-direction: column; }
+      #s5 .spark svg { flex: 1; height: auto; min-height: 140px; }
+
+      #s7 #drawer { position: static; width: 760px; justify-self: end; margin-top: 26px; }
+      #s7 .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 28px; }
+      #s7 .fact { padding: 16px 20px; }
+      #s7 .fact .t { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+      #s7 .fact .v { font-size: 18px; margin-top: 6px; line-height: 1.35; }
+
+      #s8 .strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: auto; }
+      #s8 .v { padding: 24px; }
+      #s8 .v .d { font-size: 16px; }
+      #s8 th { padding: 14px 16px; }
+      #s8 td { padding: 20px 16px; font-size: 19px; }
+      #s8 .mini { padding: 18px 20px; }
+      #s8 .mini .t { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+      #s8 .mini .v { font-size: 18px; line-height: 1.35; margin-top: 7px; }
+
+      #s13 td { padding: 14px; }
+      #s13 .fresh { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 20px; }
+      #s13 .fresh .f { padding: 16px 20px; }
+      #s13 .fresh .t { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+      #s13 .fresh .v { font-size: 19px; margin-top: 6px; }
+
+      /* ---- scenes 16–27 (act two) ---- */
+      #s16 .body { display: grid; grid-template-columns: 470px 1fr; gap: 26px; margin-top: 26px; align-items: start; }
+      #s16 .win { padding: 26px 24px; }
+      #s16 .wr { display: flex; justify-content: space-between; align-items: baseline; padding: 19px 0; border-bottom: 1px solid rgba(38, 56, 74, 0.6); font-size: 20px; }
+      #s16 .wr:last-child { border-bottom: 0; }
+      #s16 .wr .k { color: var(--muted); }
+      #s16 .wr .v { font-family: ui-monospace, monospace; color: var(--ink); }
+      #s16 table { width: 100%; border-collapse: collapse; font-size: 21px; }
+      #s16 th { text-align: left; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 14px; border-bottom: 1px solid var(--line); }
+      #s16 td { padding: 30px 14px; border-bottom: 1px solid rgba(38, 56, 74, 0.65); }
+      #s16 td.sev { color: #fca5a5; font-weight: 700; }
+      #s16 .flow { display: grid; grid-template-columns: 1fr 40px 1fr 40px 1fr; align-items: center; margin-top: 24px; }
+      #s16 .st { padding: 22px; }
+      #s16 .st .b { font-family: ui-monospace, monospace; font-size: 20px; color: var(--accent); }
+      #s16 .st .d { font-size: 17px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+      #s16 .ar { text-align: center; font-size: 26px; color: var(--muted); }
+      #s16 .strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: auto; }
+      #s16 .mini { padding: 18px 20px; }
+      #s16 .mini .t { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+      #s16 .mini .v { font-size: 18px; line-height: 1.35; margin-top: 7px; }
+
+      #s17 .body { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; margin-top: 26px; flex: 1; }
+      #s17 .side2 { padding: 28px; display: flex; flex-direction: column; }
+      #s17 .tag { display: flex; align-items: center; gap: 14px; }
+      #s17 .hdr { display: grid; grid-template-columns: 100px 1fr 84px 110px; gap: 16px; margin-top: 28px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+      #s17 .hdr .nu, #s17 .hdr .ct { text-align: right; }
+      #s17 .rows { flex: 1; display: flex; flex-direction: column; justify-content: space-around; }
+      #s17 .row3 { display: grid; grid-template-columns: 100px 1fr 84px 110px; align-items: center; gap: 16px; }
+      #s17 .row3 .mo { font-family: ui-monospace, monospace; font-size: 16px; color: var(--muted); }
+      #s17 .row3 .track { height: 26px; border-radius: 99px; background: #0e1a26; border: 1px solid var(--line); overflow: hidden; }
+      #s17 .row3 .ct { text-align: right; font-family: ui-monospace, monospace; font-size: 17px; color: var(--muted); }
+      #s17 .row3 .fill { display: block; height: 100%; width: 100%; border-radius: 99px; transform-origin: 0% 50%; }
+      #s17 .row3 .fill.bad { background: linear-gradient(90deg, #b91c1c, #f59e0b); }
+      #s17 .row3 .fill.fine { background: linear-gradient(90deg, #0e7490, #38bdf8); }
+      #s17 .row3 .nu { text-align: right; font-family: ui-monospace, monospace; font-size: 24px; }
+      #s17 .end-line { padding-top: 20px; font-size: 19px; }
+      #s17 .foot { margin-top: 22px; font-size: 19px; color: var(--muted); }
+
+      #s18 .body { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 26px; }
+      #s18 .code { padding: 22px 24px; display: flex; flex-direction: column; }
+      #s18 .blk { font-family: ui-monospace, monospace; font-size: 17px; line-height: 1.72; color: #cbd5e1; white-space: pre; margin-top: 16px; background: #0b1622; border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+      #s18 .cap { font-size: 17px; color: var(--muted); margin-top: 16px; line-height: 1.45; }
+      #s18 .strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: auto; }
+      #s18 .mini { padding: 18px 20px; }
+      #s18 .mini .t { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+      #s18 .mini .v { font-size: 18px; line-height: 1.35; margin-top: 7px; }
+
+      #s19 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 30px; }
+      #s19 .c { padding: 30px; }
+      #s19 .c .t { font-size: 21px; font-weight: 750; }
+      #s19 .c .m { font-size: 15px; font-family: ui-monospace, monospace; color: var(--accent); margin-top: 7px; }
+      #s19 .c .d { font-size: 18px; color: var(--muted); margin-top: 13px; line-height: 1.5; }
+      #s19 .mid { margin-top: 24px; }
+      #s19 .bar { display: flex; align-items: center; gap: 18px; padding: 16px 24px; border-bottom: 1px solid var(--line); }
+      #s19 .bar .mk { font-size: 15px; letter-spacing: 0.2em; color: var(--accent); }
+      #s19 .bar .tb { display: flex; gap: 18px; font-size: 15px; color: var(--muted); }
+      #s19 .bar .off { margin-left: auto; }
+      #s19 .note { padding: 22px 24px; font-size: 19px; color: var(--muted); line-height: 1.45; }
+      #s19 .bar2 { display: flex; align-items: center; gap: 18px; padding: 20px 24px; border-top: 1px solid var(--line); }
+      #s19 .bar2 .tb2 { font-family: ui-monospace, monospace; font-size: 16px; color: var(--muted); }
+      #s19 .bar2 .cl { margin-left: auto; }
+      #s19 .stat3 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; padding: 20px 24px; border-top: 1px solid var(--line); }
+      #s19 .stat3 .k { display: block; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+      #s19 .stat3 .v { display: block; font-size: 19px; margin-top: 7px; color: var(--ink); }
+      #s19 .strip { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: auto; }
+      #s19 .mini { padding: 20px 22px; }
+      #s19 .mini .t { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+      #s19 .mini .v { font-size: 19px; line-height: 1.4; margin-top: 8px; }
+
+      #s20 .pal { width: 1200px; margin: 28px auto 0; overflow: hidden; }
+      #s20 .in { display: flex; align-items: center; gap: 14px; padding: 24px 30px; border-bottom: 1px solid var(--line); }
+      #s20 .in .q { font-size: 26px; }
+      #s20 .caret { width: 2px; height: 28px; background: var(--accent); }
+      #s20 .it { display: flex; align-items: center; justify-content: space-between; padding: 17px 30px; font-size: 22px; color: var(--muted); }
+      #s20 .it .hint { font-size: 15px; font-family: ui-monospace, monospace; opacity: 0.72; }
+      #s20 .it.sel { background: rgba(56, 189, 248, 0.13); color: var(--ink); }
+      #s20 .it.sel .hint { color: var(--accent); opacity: 1; }
+      #s20 .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: auto; }
+      #s20 .fact { padding: 18px 20px; }
+      #s20 .fact .t { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+      #s20 .fact .v { font-size: 18px; line-height: 1.35; margin-top: 7px; }
+
+      #s21 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 34px; align-content: start; }
+      #s21 .scope { margin-top: 26px; padding: 22px 24px; }
+      #s21 .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; margin-top: 16px; }
+      #s21 .cols .k { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+      #s21 .cols .v { font-size: 19px; margin-top: 8px; line-height: 1.4; }
+      #s21 .c { padding: 26px 24px; display: flex; flex-direction: column; }
+      #s21 .demo { margin-top: auto; padding-top: 18px; border-top: 1px solid rgba(38, 56, 74, 0.7); font-family: ui-monospace, monospace; font-size: 15px; line-height: 1.85; color: #cbd5e1; }
+      #s21 .demo i { font-style: normal; color: var(--muted); }
+      #s21 .c .t { font-size: 21px; font-weight: 750; }
+      #s21 .c .m { font-size: 15px; font-family: ui-monospace, monospace; color: var(--accent); margin-top: 7px; }
+      #s21 .c .d { font-size: 17px; color: var(--muted); margin-top: 14px; line-height: 1.45; }
+      #s21 .sw { display: inline-flex; gap: 8px; margin-top: 16px; }
+      #s21 .sw span { font-size: 17px; padding: 6px 14px; border-radius: 9px; border: 1px solid var(--line); color: var(--muted); }
+      #s21 .sw span.on { color: var(--accent); border-color: rgba(56, 189, 248, 0.5); background: rgba(56, 189, 248, 0.1); }
+      #s21 .foot { margin-top: auto; font-size: 20px; color: var(--muted); }
+
+      #s22 .body { display: grid; grid-template-columns: 600px 1fr; gap: 26px; margin-top: 26px; align-items: start; }
+      #s22 .flowbar { margin-top: 26px; padding: 22px 24px; }
+      #s22 .sb { display: flex; gap: 6px; margin-top: 16px; height: 58px; }
+      #s22 .seg { border-radius: 8px; display: flex; align-items: center; padding: 0 16px; font-size: 16px; font-family: ui-monospace, monospace; overflow: hidden; white-space: nowrap; }
+      #s22 .seg.lab { background: linear-gradient(90deg, #166534, #15803d); color: #ecfdf5; }
+      #s22 .seg.sen { background: #0e7490; color: #ecfeff; }
+      #s22 .seg.miss { background: #7f1d1d; color: #fee2e2; }
+      #s22 .lg { display: flex; gap: 22px; margin-top: 16px; font-size: 16px; color: var(--muted); }
+      #s22 .lg2 { margin-top: 16px; font-size: 17px; color: var(--muted); }
+      #s22 .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-content: start; }
+      #s22 .k { padding: 18px 20px; }
+      #s22 .k .n { font-size: 32px; font-weight: 800; }
+      #s22 .k .l { font-size: 14px; color: var(--muted); margin-top: 3px; }
+      #s22 table { width: 100%; border-collapse: collapse; font-size: 19px; }
+      #s22 th { text-align: left; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+      #s22 th.n, #s22 td.n { text-align: right; font-family: ui-monospace, monospace; }
+      #s22 td { padding: 26px 14px; border-bottom: 1px solid rgba(38, 56, 74, 0.65); }
+      #s22 .foot { margin-top: auto; font-size: 19px; color: var(--muted); }
+
+      #s23 .body { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 26px; flex: 1; }
+      #s23 .p { padding: 28px; display: flex; flex-direction: column; }
+      #s23 .p .file { font-family: ui-monospace, monospace; font-size: 17px; color: var(--accent); }
+      #s23 .p .blk { margin-top: auto; font-family: ui-monospace, monospace; font-size: 16px; line-height: 1.75; color: #cbd5e1; background: #0b1622; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; white-space: pre; }
+      #s23 .p .st { font-size: 21px; font-weight: 750; margin-top: 14px; }
+      #s23 .p .d { font-size: 17px; color: var(--muted); margin-top: 10px; line-height: 1.45; }
+      #s23 .p ul { margin: 16px 0 0; padding-left: 20px; font-size: 17px; line-height: 1.6; }
+      #s23 .p li { margin-bottom: 7px; }
+      #s23 .strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 20px; }
+      #s23 .mini { padding: 16px 20px; }
+      #s23 .mini .t { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+      #s23 .mini .v { font-size: 17px; line-height: 1.35; margin-top: 6px; }
+
+      #s24 .hero { padding: 34px 36px; margin-top: 24px; }
+      #s24 .hero .badge { display: inline-block; font-size: 14px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 999px; padding: 6px 16px; }
+      #s24 .hero .t { font-size: 40px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; margin-top: 18px; }
+      #s24 .hero .s { font-size: 19px; color: var(--muted); margin-top: 12px; }
+      #s24 .hero .cta { display: inline-block; margin-top: 18px; padding: 10px 20px; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.55); color: var(--accent); font-size: 17px; font-weight: 700; }
+      #s24 .feat { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 22px; align-content: start; }
+      #s24 .strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: auto; }
+      #s24 .mini { padding: 18px 20px; }
+      #s24 .mini .t { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+      #s24 .mini .v { font-size: 18px; line-height: 1.35; margin-top: 7px; }
+      #s24 .f { padding: 18px 20px; }
+      #s24 .f .t { font-size: 18px; font-weight: 750; margin-top: 10px; }
+      #s24 .f .d { font-size: 15px; color: var(--muted); margin-top: 8px; line-height: 1.42; }
+      #s24 .f .i { font-size: 20px; color: var(--accent); }
+
+      #s25 .body { display: grid; grid-template-columns: 660px 1fr; gap: 26px; margin-top: 26px; flex: 1; }
+      #s25 .term { padding: 24px; background: #0b1622; }
+      #s25 .term .ln { font-family: ui-monospace, monospace; font-size: 18px; line-height: 1.9; color: #cbd5e1; }
+      #s25 .term .ln.cmd { color: var(--accent); }
+      #s25 .term .ln.ok { color: #86efac; }
+      #s25 .files { display: grid; grid-template-columns: 1fr 1fr; gap: 0 26px; align-content: start; }
+      #s25 .files div { font-family: ui-monospace, monospace; font-size: 17px; color: var(--muted); padding: 11px 0; border-bottom: 1px solid rgba(38, 56, 74, 0.6); }
+      #s25 .strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 20px; }
+      #s25 .mini { padding: 16px 20px; }
+      #s25 .mini .t { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+      #s25 .mini .v { font-size: 17px; line-height: 1.35; margin-top: 6px; }
+
+      #s26 .body { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 26px; align-items: start; }
+      #s26 .m2 { font-family: ui-monospace, monospace; font-size: 17px; color: var(--muted); margin-top: 16px; }
+      #s26 .rules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 24px; }
+      #s26 .rule { padding: 20px 22px; }
+      #s26 .rule .rn { font-family: ui-monospace, monospace; font-size: 19px; }
+      #s26 .rule .rw { font-size: 15px; color: var(--muted); margin-top: 6px; }
+      #s26 .rule .bar { height: 10px; border-radius: 99px; background: #0e1a26; border: 1px solid var(--line); margin-top: 14px; overflow: hidden; }
+      #s26 .rule .bar span { display: block; height: 100%; width: 100%; transform-origin: 0% 50%; background: linear-gradient(90deg, #38bdf8, #818cf8); }
+      #s26 .rule .pc { font-size: 16px; color: var(--muted); margin-top: 10px; }
+      #s26 .p { padding: 24px; }
+      #s26 .in-t { font-size: 24px; line-height: 1.45; margin-top: 14px; }
+      #s26 .out-r { display: flex; justify-content: space-between; align-items: baseline; padding: 13px 0; border-bottom: 1px solid rgba(38, 56, 74, 0.6); font-size: 19px; }
+      #s26 .out-r:last-child { border-bottom: 0; }
+      #s26 .out-r .k { color: var(--muted); }
+      #s26 .out-r .v { font-family: ui-monospace, monospace; }
+      #s26 .wr-t { display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid rgba(38, 56, 74, 0.6); font-size: 18px; }
+      #s26 .wr-t:last-child { border-bottom: 0; }
+      #s26 .wr-t .ep { font-family: ui-monospace, monospace; color: var(--accent); }
+      #s26 .wr-t .w { color: #86efac; font-family: ui-monospace, monospace; }
+      #s26 .foot { margin-top: auto; font-size: 19px; color: var(--muted); }
+
+      #s27 .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 30px; align-content: start; }
+      #s27 .c { padding: 26px; }
+      #s27 .c .t { font-size: 20px; font-weight: 750; }
+      #s27 .c .d { font-size: 18px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+      #s27 .foot { margin-top: auto; font-size: 21px; color: var(--ink); }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-width="1920"
+      data-height="1080"
+      data-duration="175"
+    >
+      <div id="glow"></div>
+
+      <div id="chrome">
+        <div class="brand"><span class="dot"></span>WARDQ</div>
+        <div class="meta">
+          <span>db: <b>up</b></span>
+          <span>24 wards</span>
+          <span>month <b>2026-10</b></span>
+          <span>exasol personal · 127.0.0.1:8563</span>
+        </div>
+      </div>
+
+      <div id="progress-track"><div id="progress-fill"></div></div>
+
+      <!-- ============ 1 — the inversion — 0s to 6s ============ -->
+      <section id="s1" class="scene clip" data-start="0" data-duration="6">
+        <div class="spark">
+          <svg viewBox="0 0 1920 320" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.55" />
+                <stop offset="100%" stop-color="#f59e0b" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+            <path id="s1-area" d="M0 300 L0 260 L240 246 L480 232 L720 210 L960 176 L1200 150 L1440 96 L1680 64 L1920 28 L1920 300 Z" fill="url(#sparkFill)" />
+            <path id="s1-line" d="M0 260 L240 246 L480 232 L720 210 L960 176 L1200 150 L1440 96 L1680 64 L1920 28" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="l1 r" id="s1-l1">The water gets worse first.</div>
+        <div class="l2 r" id="s1-l2">The illness arrives weeks later.</div>
+        <div class="foot r" id="s1-foot">24 wards · 288,768 readings · 15,063 citizen complaints</div>
+      </section>
+
+      <!-- ============ 2 — title + promise — 6s to 15s ============ -->
+      <section id="s2" class="scene clip" data-start="6" data-duration="9">
+        <div class="badge r" id="s2-badge">ExaThon India 2026 · Civic / Sustainability track</div>
+        <h1 class="h1 r" id="s2-title">Ward-Level Water Quality &amp; Complaint Triage</h1>
+        <p class="lede r" id="s2-lede">One page every morning. Every ward ranked. Every breach explained.</p>
+        <p class="lede r" id="s2-lede2" style="margin-top: 10px; color: #fcd34d">Catch deteriorating water quality before the illness spike confirms it.</p>
+        <div class="stats">
+          <div class="stat card r" id="s2-s1"><div class="v">24</div><div class="l">wards monitored</div></div>
+          <div class="stat card r" id="s2-s2"><div class="v">288,768</div><div class="l">lab / sensor readings</div></div>
+          <div class="stat card r" id="s2-s3"><div class="v">15,063</div><div class="l">complaints triaged</div></div>
+          <div class="stat card r" id="s2-s4"><div class="v">14</div><div class="l">read endpoints, all SQL-backed</div></div>
+        </div>
+      </section>
+
+      <!-- ============ 3 — what is running — 15s to 24s ============ -->
+      <section id="s3" class="scene clip" data-start="15" data-duration="9">
+        <div class="kicker r" id="s3-kicker">What is actually running</div>
+        <h2 class="h2 r" id="s3-title">One laptop. One schema. One port.</h2>
+        <div class="grid">
+          <div class="stack">
+            <div class="row card r" id="s3-r1"><span class="k">Engine</span><span class="v">Exasol Personal · schema WARDQ</span></div>
+            <div class="row card r" id="s3-r2"><span class="k">API</span><span class="v">FastAPI + pyexasol · SELECT only</span></div>
+            <div class="row card r" id="s3-r3"><span class="k">UI</span><span class="v">React + Vite + Chart.js</span></div>
+            <div class="row card r" id="s3-r4"><span class="k">Serving</span><span class="v">one origin · 127.0.0.1:8000 · no CORS</span></div>
+          </div>
+          <div>
+            <div class="card-h r" id="s3-pipe-h">The whole pipeline is nine SQL files</div>
+            <div class="pipes" style="margin-top: 14px">
+              <div class="pipe r" id="s3-p1">10_schema</div>
+              <div class="pipe r" id="s3-p2">20_seed_dims</div>
+              <div class="pipe r" id="s3-p3">30_generate_readings</div>
+              <div class="pipe r" id="s3-p4">40_anomaly_window</div>
+              <div class="pipe r" id="s3-p5">45_forecast_view</div>
+              <div class="pipe r" id="s3-p6">46_data_quality_view</div>
+              <div class="pipe hot r" id="s3-p7">50_udf_ward_risk.lua</div>
+              <div class="pipe r" id="s3-p8">60_materialize</div>
+              <div class="pipe r" id="s3-p9">70_verify</div>
+            </div>
+            <div class="foot r" id="s3-foot">All analytics run locally — nothing leaves this machine.</div>
+          </div>
+        </div>
+        <div class="strip">
+          <div class="mini card r" id="s3-m1"><div class="t">Read path</div><div class="v">SELECT-only endpoints · no write API</div></div>
+          <div class="mini card r" id="s3-m2"><div class="t">Seeded</div><div class="v">30_generate_readings · 288,768 rows</div></div>
+          <div class="mini card r" id="s3-m3"><div class="t">Views</div><div class="v">V_WARD_FORECAST · V_DATA_QUALITY</div></div>
+          <div class="mini card r" id="s3-m4"><div class="t">Verify</div><div class="v">70_verify · the checks the pipeline asserts</div></div>
+        </div>
+      </section>
+
+      <!-- ============ 4 — dashboard — 24s to 40s ============ -->
+      <section id="s4" class="scene clip" data-start="24" data-duration="16">
+        <div class="kicker r" id="s4-kicker">Dashboard · what is wrong today</div>
+        <div class="kpis">
+          <div class="kpi card r" id="s4-k1"><div class="n">288,768</div><div class="l">lab / sensor readings</div></div>
+          <div class="kpi card r" id="s4-k2"><div class="n">15,063</div><div class="l">complaints triaged</div></div>
+          <div class="kpi card r" id="s4-k3"><div class="n">24</div><div class="l">wards monitored</div></div>
+          <div class="kpi card r" id="s4-k4"><div class="n">7,805</div><div class="l">high-severity complaints</div></div>
+          <div class="kpi card r is-worst" id="s4-k5"><div class="n">75.4</div><div class="l">worst ward · Ward 205 - Peenya</div></div>
+        </div>
+        <div class="body">
+          <div class="side">
+            <div class="worst card r" id="s4-worst">
+              <div class="card-h">Worst ward this month</div>
+              <div class="name">Ward 205 - Peenya</div>
+              <div class="score">75.4</div>
+              <div class="cap small" style="margin-top: 6px">risk score · rank 1 of 24</div>
+              <div class="row">
+                <span class="chip chip--bad">COLIFORM</span>
+                <span class="chip chip--warn">28 complaints · 10 high</span>
+              </div>
+            </div>
+            <div class="replay card r" id="s4-replay">
+              <div class="card-h">▶ Replay · 13 months</div>
+              <div class="track">
+                <div class="fill" id="s4-fill"></div>
+                <div class="knob" id="s4-knob"></div>
+              </div>
+              <div class="meta"><span class="month" id="s4-month">2025-10</span><span>live</span></div>
+            </div>
+            <div class="payload card r" id="s4-payload">
+              <div class="card-h">One request</div>
+              <div class="pl"><span>cells</span><b>312</b></div>
+              <div class="pl"><span>months</span><b>13</b></div>
+              <div class="pl"><span>wards</span><b>24</b></div>
+            </div>
+          </div>
+          <div class="hm-card card r" id="s4-hmcard">
+            <div class="hm-head">
+              <div class="card-h">Ward × month risk heatmap</div>
+              <div class="legend"><span>lower</span><span class="bar"></span><span>higher</span></div>
+            </div>
+            <div class="hm-wrap">
+              <div class="heatmap" id="heatmap"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 5 — the case file — 40s to 53s ============ -->
+      <section id="s5" class="scene clip" data-start="40" data-duration="13">
+        <div class="kicker r" id="s5-kicker">Ward case file · #/ward/24</div>
+        <h2 class="h2 r" id="s5-title" style="margin-top: 10px">The score is four numbers you can argue with</h2>
+        <div class="top">
+          <div class="who card r" id="s5-who">
+            <div class="id">Ward 24 · Bengaluru · South</div>
+            <div class="name">Ward 205 - Peenya</div>
+            <div class="score">75.4</div>
+            <div class="cap">RISK_SCORE · rank 1 of 24 · worst parameter COLIFORM</div>
+            <div style="margin-top: 14px"><span class="chip chip--bad">2.786 complaints / 1k connections</span></div>
+          </div>
+          <div class="bars card r" id="s5-bars">
+            <div class="card-h">Weighted components · the UDF's own 35 / 30 / 15 / 20</div>
+            <div class="bar-row">
+              <div class="bar-label"><span>Z-score anomaly</span><span class="w">35% · 0.81</span></div>
+              <div class="bar-track"><div class="bar-fill" data-w="24.3"></div></div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-label"><span>Days in breach</span><span class="w">30% · 2.36</span></div>
+              <div class="bar-track"><div class="bar-fill" data-w="61.0"></div></div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-label"><span>12-month slope</span><span class="w">15% · 0.40</span></div>
+              <div class="bar-track"><div class="bar-fill" data-w="5.2"></div></div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-label"><span>Complaint density</span><span class="w">20% · 0.56</span></div>
+              <div class="bar-track"><div class="bar-fill" data-w="9.6"></div></div>
+            </div>
+          </div>
+          <div class="spark card r" id="s5-spark">
+            <div class="card-h">Risk, last 13 months</div>
+            <svg id="s5-svg" viewBox="0 0 460 210" preserveAspectRatio="none"></svg>
+          </div>
+        </div>
+        <div class="bottom">
+          <div class="fc card r" id="s5-fc">
+            <div class="cell"><div class="p">COLIFORM</div><div class="v bad">over limit</div><div class="s">2.274 CFU/100ml</div></div>
+            <div class="cell"><div class="p">TURBIDITY</div><div class="v">stable</div><div class="s">2.643 NTU · limit 5</div></div>
+            <div class="cell"><div class="p">CHLORINE</div><div class="v">stable</div><div class="s">0.58 mg/L · band 0.2–1.0</div></div>
+            <div class="cell"><div class="p">PH</div><div class="v">stable</div><div class="s">7.311 · band 5.5–8.5</div></div>
+          </div>
+          <div class="next card r" id="s5-next">
+            <div class="card-h">Do next</div>
+            <ol>
+              <li>Start with Ward 205 - Peenya — COLIFORM over limit</li>
+              <li>Plan for Ward 191 - Banashankari — turbidity crosses 5 NTU in ~26 days</li>
+              <li>Check the probe in Ward 51 - Indiranagar — 22 sensor breaches, 0 lab</li>
+            </ol>
+            <div class="btn">Print report</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 6 — trend — 53s to 63s ============ -->
+      <section id="s6" class="scene clip" data-start="53" data-duration="10">
+        <div class="kicker r" id="s6-kicker">Trend · why the ward is red</div>
+        <h2 class="h2 r" id="s6-title" style="margin-top: 10px">Ward 24 turbidity · 26 monthly buckets · breach band at 5 NTU</h2>
+        <div class="body">
+          <div class="chart card r" id="s6-chart">
+            <svg id="s6-svg" viewBox="0 0 1180 400" preserveAspectRatio="none"></svg>
+          </div>
+          <div class="notes">
+            <div class="note card r" id="s6-n1"><div class="t">Window</div><div class="v">30-day trailing mean, z-score and breach run per ward × parameter</div></div>
+            <div class="note card r" id="s6-n2"><div class="t">Resolution</div><div class="v">≤500 points, bucketed server-side</div></div>
+            <div class="note card r" id="s6-n3"><div class="t">Deterioration</div><div class="v">12-month slope, not a single spike</div></div>
+            <div class="note card r" id="s6-n4"><div class="t">Forecast</div><div class="v">dashed: 90-day linear projection with a widening band</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 7 — anomalies and the SQL — 63s to 73s ============ -->
+      <section id="s7" class="scene clip" data-start="63" data-duration="10">
+        <div class="kicker r" id="s7-kicker">Anomalies · click any row</div>
+        <h2 class="h2 r" id="s7-title" style="margin-top: 10px">Six flagged rows in 2026-10 · every one opens the SQL that produced it</h2>
+        <div class="body">
+          <table>
+            <thead>
+              <tr><th>Ward</th><th>Parameter</th><th>Z</th><th>Breach days</th><th>Consec. run</th><th>12m slope</th><th>Severity</th></tr>
+            </thead>
+            <tbody>
+              <tr class="r" id="s7-r1"><td>Ward 205 - Peenya</td><td>COLIFORM</td><td class="mono">−3.23</td><td>52</td><td>0</td><td class="mono">0.016</td><td class="sev">high</td></tr>
+              <tr class="r" id="s7-r2"><td>Ward 11 - Vile Parle East</td><td>TURBIDITY</td><td class="mono">−3.17</td><td>0</td><td>0</td><td class="mono">0.010</td><td class="sev">high</td></tr>
+              <tr class="r pick" id="s7-r3"><td>Ward 5 - Govandi</td><td>COLIFORM</td><td class="mono">−3.16</td><td>50</td><td>0</td><td class="mono">0.016</td><td class="sev">high</td><td><div id="cursor"></div></td></tr>
+              <tr class="r" id="s7-r4"><td>Ward 84 - Whitefield</td><td>TURBIDITY</td><td class="mono">−3.09</td><td>0</td><td>0</td><td class="mono">0.010</td><td class="sev">high</td></tr>
+              <tr class="r" id="s7-r5"><td>Ward 5 - Govandi</td><td>TURBIDITY</td><td class="mono">−3.09</td><td>0</td><td>0</td><td class="mono">0.010</td><td class="sev">high</td></tr>
+            </tbody>
+          </table>
+          <div id="drawer">
+            <div class="card-h">The saved query behind this number</div>
+            <div class="sql">SELECT WARD_ID, RISK_SCORE, WORST_PARAM
+FROM WARDQ.WARD_MONTH_RISK
+WHERE SAMPLE_MONTH = '2026-10'
+ORDER BY RISK_SCORE DESC;</div>
+            <div class="cmd">backend/.venv/bin/python scripts/run_sql.py db/sql/deteriorating_wards.sql</div>
+          </div>
+          <div class="facts">
+            <div class="fact card r" id="s7-f1"><div class="t">Z-score</div><div class="v">30-day trailing mean against a 90-day baseline</div></div>
+            <div class="fact card r" id="s7-f2"><div class="t">Breach run</div><div class="v">consecutive days above the parameter's limit</div></div>
+            <div class="fact card r" id="s7-f3"><div class="t">Slope</div><div class="v">12-month linear trend, not one bad afternoon</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 8 — disagreements — 73s to 84s ============ -->
+      <section id="s8" class="scene clip" data-start="73" data-duration="11">
+        <div class="kicker r" id="s8-kicker">Disagreements · 2026-10</div>
+        <h2 class="h2 r" id="s8-title" style="margin-top: 10px">But the lab says compliant</h2>
+        <div class="verdicts">
+          <div class="v card r" id="s8-v1">
+            <div class="n" style="color: #fcd34d">2</div>
+            <div class="k" style="color: #fcd34d">instrument_suspect</div>
+            <div class="d">Probe breaches with zero lab confirmation — a maintenance ticket, not an outbreak.</div>
+          </div>
+          <div class="v card r" id="s8-v2">
+            <div class="n" style="color: #fca5a5">26</div>
+            <div class="k" style="color: #fca5a5">lab_confirmed</div>
+            <div class="d">Both the probe and the laboratory agree the water is out of limits.</div>
+          </div>
+          <div class="v card r" id="s8-v3">
+            <div class="n ok">68</div>
+            <div class="k ok">consistent</div>
+            <div class="d">No breach on either side. Quiet rows stay quiet.</div>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Ward</th><th>Param</th><th>Probe breaches</th><th>Lab breaches</th><th>Complaints</th><th>Verdict</th></tr>
+          </thead>
+          <tbody>
+            <tr class="r" id="s8-r1"><td>Ward 51 - Indiranagar</td><td>PH</td><td>22</td><td>0</td><td>8</td><td style="color: #fcd34d">instrument_suspect</td></tr>
+            <tr class="r" id="s8-r2"><td>Ward 3 - Powai</td><td>PH</td><td>21</td><td>0</td><td>7</td><td style="color: #fcd34d">instrument_suspect</td></tr>
+            <tr class="r" id="s8-r3"><td>Ward 51 - Indiranagar</td><td>COLIFORM</td><td>12</td><td>41</td><td>8</td><td style="color: #fca5a5">lab_confirmed</td></tr>
+            <tr class="r" id="s8-r4"><td>Ward 3 - Powai</td><td>COLIFORM</td><td>11</td><td>40</td><td>7</td><td style="color: #fca5a5">lab_confirmed</td></tr>
+          </tbody>
+        </table>
+        <div class="big r" id="s8-foot" style="color: var(--muted); font-size: 19px; font-weight: 500">4 of 96 ward × parameter rows for 2026-10 · one 288,768-row aggregate per request</div>
+        <div class="strip">
+          <div class="mini card r" id="s8-m1"><div class="t">Different clocks</div><div class="v">The probe samples daily. The lab samples on its own schedule.</div></div>
+          <div class="mini card r" id="s8-m2"><div class="t">Joined to</div><div class="v">V_LAB_VS_SENSOR, then COMPLAINT_SUMMARY</div></div>
+          <div class="mini card r" id="s8-m3"><div class="t">The point</div><div class="v">A breach on one side only is a question, not a verdict.</div></div>
+        </div>
+      </section>
+
+      <!-- ============ 9 — complaints — 84s to 93s ============ -->
+      <section id="s9" class="scene clip" data-start="84" data-duration="9">
+        <div class="kicker r" id="s9-kicker">Complaints · the triage queue</div>
+        <h2 class="h2 r" id="s9-title" style="margin-top: 10px">What people are saying, and which rule fired</h2>
+        <div class="field card r" id="s9-field">
+          <span class="small">search</span>
+          <span class="q mono" id="s9-q">black water</span>
+          <span class="caret" id="s9-caret"></span>
+          <span class="chip" style="margin-left: auto">15,063 rows</span>
+        </div>
+        <div class="msgs">
+          <div class="msg card r" id="s9-m1">
+            <div class="txt">Drain water mixing into supply line at Electronic City. Very contaminated</div>
+            <div class="tags"><span class="chip chip--bad">contamination</span><span class="chip chip--warn">high</span><span class="chip">0.99</span></div>
+            <div class="ev">RULE_EVIDENCE · contaminat; drain; drain water mix</div>
+          </div>
+          <div class="msg card r" id="s9-m2">
+            <div class="txt">Major pipe burst at HSR Layout main road, water running for 6 hours</div>
+            <div class="tags"><span class="chip">leakage</span><span class="chip chip--warn">high</span><span class="chip">0.70</span></div>
+            <div class="ev">RULE_EVIDENCE · pipe burst; burst; pipe</div>
+          </div>
+          <div class="msg card r" id="s9-m3">
+            <div class="txt">Skin rash after bathing, Bandra West lane number 4</div>
+            <div class="tags"><span class="chip chip--bad">contamination</span><span class="chip chip--warn">high</span><span class="chip">0.97</span></div>
+            <div class="ev">RULE_EVIDENCE · skin rash</div>
+          </div>
+        </div>
+        <div class="foot">
+          <div class="l r" id="s9-foot">A regex rule table, not a neural network — you can see exactly which rule fired.</div>
+          <span class="chip r" id="s9-rule">RULE_VERSION 2026.10</span>
+        </div>
+      </section>
+
+      <!-- ============ 10 — ingest — 93s to 101s ============ -->
+      <section id="s10" class="scene clip" data-start="93" data-duration="8">
+        <div class="kicker r" id="s10-kicker">Ingest · drop the ward's WhatsApp export</div>
+        <h2 class="h2 r" id="s10-title" style="margin-top: 10px">A messy ward chat becomes rows — and you see the parse before it commits</h2>
+        <div class="body">
+          <div class="drop card r" id="s10-drop">
+            <div class="card-h">Parse report</div>
+            <div class="file" style="margin-top: 16px">
+              <span class="chip">.txt</span>
+              <span>ward_4_dharavi_export.txt</span>
+              <span class="small" style="margin-left: auto">dry run</span>
+            </div>
+            <div class="stats">
+              <div class="stat r" id="s10-t1"><div class="n">33</div><div class="l">lines read</div></div>
+              <div class="stat r" id="s10-t2"><div class="n">31</div><div class="l">lines parsed</div></div>
+              <div class="stat r" id="s10-t3"><div class="n">2</div><div class="l">system lines</div></div>
+              <div class="stat r" id="s10-t4"><div class="n">30</div><div class="l">messages returned</div></div>
+              <div class="stat r" id="s10-t5"><div class="n">30 / 30</div><div class="l">ward inferred</div></div>
+              <div class="stat r" id="s10-t6"><div class="n ok">0</div><div class="l">unresolved</div></div>
+            </div>
+            <div class="stamp r" id="s10-stamp">Preview only: nothing was inserted, so this is safe to re-run.</div>
+            <div class="small r" id="s10-alt" style="margin-top: 18px">CSV / XLSX: POST /api/ingest/logs returns staging rows plus a report.</div>
+          </div>
+          <div class="mix card r" id="s10-mix">
+            <div class="card-h">Category mix · 30 messages</div>
+            <div class="mix-row">
+              <div class="mix-top"><span>contamination</span><span class="mono">12</span></div>
+              <div class="mix-track"><div class="mix-fill" data-w="40"></div></div>
+            </div>
+            <div class="mix-row">
+              <div class="mix-top"><span>other</span><span class="mono">12</span></div>
+              <div class="mix-track"><div class="mix-fill" data-w="40"></div></div>
+            </div>
+            <div class="mix-row">
+              <div class="mix-top"><span>leakage</span><span class="mono">4</span></div>
+              <div class="mix-track"><div class="mix-fill" data-w="13.3"></div></div>
+            </div>
+            <div class="mix-row">
+              <div class="mix-top"><span>pressure</span><span class="mono">2</span></div>
+              <div class="mix-track"><div class="mix-fill" data-w="6.7"></div></div>
+            </div>
+            <div class="small" style="margin-top: 26px">default ward resolved to 3 · RULE_VERSION 2026.10</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 11 — leaderboard + simulator — 101s to 113s ============ -->
+      <section id="s11" class="scene clip" data-start="101" data-duration="12">
+        <div class="kicker r" id="s11-kicker">Leaderboard · the visit order for this month</div>
+        <h2 class="h2 r" id="s11-title" style="margin-top: 10px">The ranking is a formula you can open, re-weight and argue with</h2>
+        <div class="body">
+          <div class="lb card r" id="s11-lb">
+            <div class="card-h">Top 5 by risk · 2026-10</div>
+            <div class="lb-row r" id="s11-l1"><span class="rk">1</span><span class="nm">Ward 205 - Peenya</span><span class="track"><span class="fill" data-w="75.4"></span></span><span class="val">75.4</span></div>
+            <div class="lb-row r" id="s11-l2"><span class="rk">2</span><span class="nm">Ward 5 - Govandi</span><span class="track"><span class="fill" data-w="73.5"></span></span><span class="val">73.5</span></div>
+            <div class="lb-row r" id="s11-l3"><span class="rk">3</span><span class="nm">Ward 178 - Electronic City</span><span class="track"><span class="fill" data-w="70.3"></span></span><span class="val">70.3</span></div>
+            <div class="lb-row r" id="s11-l4"><span class="rk">4</span><span class="nm">Ward 191 - Banashankari</span><span class="track"><span class="fill" data-w="69.6"></span></span><span class="val">69.6</span></div>
+            <div class="lb-row r" id="s11-l5"><span class="rk">5</span><span class="nm">Ward 7 - Kurla South</span><span class="track"><span class="fill" data-w="68.4"></span></span><span class="val">68.4</span></div>
+            <div class="small" style="margin-top: 28px">risk score, not a rank of water quality — a high score with a clean lab is a probe ticket</div>
+          </div>
+          <div class="sim card r" id="s11-sim">
+            <div class="card-h">Simulator · move the weights</div>
+            <div class="slider r" id="s11-sl1">
+              <div class="top"><span>Z-score anomaly</span><span class="mono">35</span></div>
+              <div class="track"><div class="fill" data-w="35"></div><div class="knob" data-w="35"></div></div>
+            </div>
+            <div class="slider r" id="s11-sl2">
+              <div class="top"><span>Days in breach</span><span class="mono">30</span></div>
+              <div class="track"><div class="fill" data-w="30"></div><div class="knob" data-w="30"></div></div>
+            </div>
+            <div class="slider r" id="s11-sl3">
+              <div class="top"><span>12-month slope</span><span class="mono">15</span></div>
+              <div class="track"><div class="fill" data-w="15"></div><div class="knob" data-w="15"></div></div>
+            </div>
+            <div class="slider r" id="s11-sl4">
+              <div class="top"><span>Complaint density</span><span class="mono">20</span></div>
+              <div class="track"><div class="fill" data-w="20"></div><div class="knob" data-w="20"></div></div>
+            </div>
+            <div class="formula r" id="s11-formula">RISK = 100 · Σ(wᵢ · cᵢ) / Σwᵢ</div>
+            <div class="drift r" id="s11-drift">client recomputation vs the UDF · max drift <span class="mono accent">3.55e-15</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 12 — morning brief — 113s to 125s ============ -->
+      <section id="s12" class="scene clip" data-start="113" data-duration="12">
+        <div class="kicker r" id="s12-kicker">Briefing · one page, three things to do</div>
+        <h2 class="h2 r" id="s12-title" style="margin-top: 10px">Chosen in a fixed priority order — rank, then soonest crossing, then the probe</h2>
+        <div class="body">
+          <div class="actions">
+            <div class="action card r" id="s12-a1">
+              <div class="num">1</div>
+              <div>
+                <div class="t">Start with Ward 205 - Peenya</div>
+                <div class="d">COLIFORM over limit · 2.36 breach-days · 28 complaints, 10 high severity</div>
+              </div>
+            </div>
+            <div class="action card r" id="s12-a2">
+              <div class="num">2</div>
+              <div>
+                <div class="t">Plan for Ward 191 - Banashankari · Turbidity</div>
+                <div class="d">4.695 NTU now · +0.0118/day · crosses 5 NTU in ~26 days · high confidence, 31 samples</div>
+              </div>
+            </div>
+            <div class="action card r" id="s12-a3">
+              <div class="num">3</div>
+              <div>
+                <div class="t">Check the probe in Ward 51 - Indiranagar</div>
+                <div class="d">22 probe breaches, 0 lab breaches · 8 complaints · looks like the instrument</div>
+              </div>
+            </div>
+          </div>
+          <div class="side">
+            <div class="panel card r" id="s12-p1">
+              <div class="card-h">Language</div>
+              <div class="langs"><span class="lang on">EN</span><span class="lang">हिं</span></div>
+              <div class="small" style="margin-top: 14px">the Hindi text is a re-request, not a client-side translation</div>
+              <div class="btn-line" style="margin-top: 16px"><span class="chip">Copy Markdown</span></div>
+            </div>
+            <div class="panel card r" id="s12-p2">
+              <div class="card-h">It leaves the laptop as</div>
+              <div class="reach">
+                <span class="r" id="s12-x1">report.md</span>
+                <span class="r" id="s12-x2">report.csv</span>
+                <span class="r" id="s12-x3">forecast.ics</span>
+                <span class="r" id="s12-x4">/feed/brief.xml</span>
+              </div>
+              <div class="small" style="margin-top: 14px">breach calendar with a 7-day alarm · Atom feed for anything that reads feeds</div>
+            </div>
+          </div>
+        </div>
+        <div class="md card r" id="s12-md">
+          <div class="ln">## Morning brief · 2026-10</div>
+          <div class="ln">1. Start with Ward 205 - Peenya</div>
+          <div class="ln">2. Plan for Ward 191 - Banashankari · Turbidity</div>
+          <div class="ln">3. Check the probe in Ward 51 - Indiranagar</div>
+        </div>
+      </section>
+
+      <!-- ============ 13 — trust — 125s to 136s ============ -->
+      <section id="s13" class="scene clip" data-start="125" data-duration="11">
+        <div class="kicker r" id="s13-kicker">Trust · can I trust this number?</div>
+        <h2 class="h2 r" id="s13-title" style="margin-top: 10px">Fourteen read endpoints, and every one names the file that reproduces it</h2>
+        <div class="kpis">
+          <div class="kpi card r" id="s13-k1"><div class="n ok">97.01%</div><div class="l">complete readings</div></div>
+          <div class="kpi card r" id="s13-k2"><div class="n" style="color: #fcd34d">2.99%</div><div class="l">unusable, excluded</div></div>
+          <div class="kpi card r" id="s13-k3"><div class="n">97.91%</div><div class="l">lab-verified</div></div>
+          <div class="kpi card r" id="s13-k4"><div class="n accent">28.02 ms</div><div class="l">measured query time</div></div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Endpoint</th><th>SQL step</th><th>Tables</th><th>File</th></tr>
+          </thead>
+          <tbody>
+            <tr class="r" id="s13-r1"><td>/api/anomalies</td><td>anomaly_window</td><td class="plain">ANOMALY_EVENT, WARD</td><td>db/40_anomaly_window.sql</td></tr>
+            <tr class="r" id="s13-r2"><td>/api/brief</td><td>morning_brief</td><td class="plain">WARD_MONTH_RISK, V_WARD_FORECAST</td><td>db/sql/morning_brief.sql</td></tr>
+            <tr class="r" id="s13-r3"><td>/api/data-quality</td><td>data_quality</td><td class="plain">V_DATA_QUALITY</td><td>db/sql/data_quality.sql</td></tr>
+            <tr class="r" id="s13-r4"><td>/api/disagreements</td><td>sensor_vs_lab</td><td class="plain">V_LAB_VS_SENSOR</td><td>db/sql/sensor_vs_lab.sql</td></tr>
+            <tr class="r" id="s13-r5"><td>/api/benchmark</td><td>latest_risk</td><td class="plain">BENCHMARK_RESULTS</td><td>db/sql/latest_risk.sql</td></tr>
+          </tbody>
+        </table>
+        <div class="exports">
+          <span class="r" id="s13-x1">CSV export</span>
+          <span class="r" id="s13-x2">.ics breach calendar</span>
+          <span class="r" id="s13-x3">Atom feed</span>
+          <span class="r" id="s13-x4">Clear cached data</span>
+        </div>
+        <div class="fresh">
+          <div class="f card r" id="s13-f1"><div class="t">Last reading</div><div class="v">2026-10-22 · 9 days old</div></div>
+          <div class="f card r" id="s13-f2"><div class="t">Rows graded</div><div class="v">8,448 · band: watch</div></div>
+          <div class="f card r" id="s13-f3"><div class="t">Missing</div><div class="v">253 readings · excluded, not guessed</div></div>
+        </div>
+        <div class="foot r" id="s13-foot">N_IMPLAUSIBLE = 0 is a finding, not a bug — the generator was told what a plausible reading looks like.</div>
+      </section>
+
+      <!-- ============ 14 — benchmark — 136s to 144s ============ -->
+      <section id="s14" class="scene clip" data-start="136" data-duration="8">
+        <div class="kicker r" id="s14-kicker">Benchmark · measured on this laptop, not quoted</div>
+        <h2 class="h2 r" id="s14-title" style="margin-top: 10px">288,768 rows: 15 ms in the database, 96 ms in SQLite</h2>
+        <div class="groups">
+          <div class="group card r" id="s14-g1">
+            <div class="g-h"><span class="g-t">S1 · scan and aggregate</span><span class="g-s">288,768 readings</span></div>
+            <div class="pair"><span class="eng">exasol</span><span class="track"><span class="fill ex" data-w="15.6"></span></span><span class="ms">15 ms</span></div>
+            <div class="pair"><span class="eng">sqlite</span><span class="track"><span class="fill other" data-w="100"></span></span><span class="ms">96 ms</span></div>
+          </div>
+          <div class="group card r" id="s14-g2">
+            <div class="g-h"><span class="g-t">S2 · ward × parameter z-score</span><span class="g-s">752 rows</span></div>
+            <div class="pair"><span class="eng">exasol</span><span class="track"><span class="fill ex" data-w="36.8"></span></span><span class="ms">7 ms</span></div>
+            <div class="pair"><span class="eng">python</span><span class="track"><span class="fill other" data-w="100"></span></span><span class="ms">19 ms</span></div>
+          </div>
+          <div class="group card r" id="s14-g3">
+            <div class="g-h"><span class="g-t">S3 · cold start vs repeat</span><span class="g-s">same query, twice</span></div>
+            <div class="pair"><span class="eng">cold</span><span class="track"><span class="fill other" data-w="100"></span></span><span class="ms">16 ms</span></div>
+            <div class="pair"><span class="eng">warm</span><span class="track"><span class="fill ex" data-w="81.3"></span></span><span class="ms">13 ms</span></div>
+          </div>
+        </div>
+        <div class="caveat r" id="s14-caveat">2 vCPU · 6 GB · one data node. A laptop benchmark, and the numbers are in the repo as a CSV.</div>
+      </section>
+
+      <!-- ============ 17 — monsoon — 144s to 154s ============ -->
+      <section id="s17" class="scene clip" data-start="144" data-duration="10">
+        <div class="kicker r" id="s17-kicker">Monsoon · downstream vs upstream</div>
+        <h2 class="h2 r" id="s17-title" style="margin-top: 10px">Same rain. Two sides of the pipe. Two different summers.</h2>
+        <div class="body">
+          <div class="side2 card r" id="s17-down">
+            <div class="tag"><span class="chip chip--bad">downstream</span><span class="small">279 ward-days a month</span></div>
+            <div class="hdr"><span class="mo">month</span><span>turbidity, NTU</span><span class="nu">avg</span><span class="ct">breach days</span></div>
+            <div class="rows">
+              <div class="row3"><span class="mo">2026-07</span><span class="track"><span class="fill bad" data-w="90.2"></span></span><span class="nu">5.41</span><span class="ct">891</span></div>
+              <div class="row3"><span class="mo">2026-08</span><span class="track"><span class="fill bad" data-w="92.3"></span></span><span class="nu">5.54</span><span class="ct">1,040</span></div>
+              <div class="row3"><span class="mo">2026-09</span><span class="track"><span class="fill bad" data-w="95.8"></span></span><span class="nu">5.75</span><span class="ct">1,049</span></div>
+            </div>
+            <div class="end-line bad">100% of ward-days in breach &mdash; every single day, three months running</div>
+          </div>
+          <div class="side2 card r" id="s17-up">
+            <div class="tag"><span class="chip">upstream</span><span class="small">465 ward-days a month</span></div>
+            <div class="hdr"><span class="mo">month</span><span>turbidity, NTU</span><span class="nu">avg</span><span class="ct">breach days</span></div>
+            <div class="rows">
+              <div class="row3"><span class="mo">2026-07</span><span class="track"><span class="fill fine" data-w="30.7"></span></span><span class="nu">1.84</span><span class="ct">0</span></div>
+              <div class="row3"><span class="mo">2026-08</span><span class="track"><span class="fill fine" data-w="32.5"></span></span><span class="nu">1.95</span><span class="ct">0</span></div>
+              <div class="row3"><span class="mo">2026-09</span><span class="track"><span class="fill fine" data-w="35.8"></span></span><span class="nu">2.15</span><span class="ct">0</span></div>
+            </div>
+            <div class="end-line ok">0% of ward-days in breach &mdash; not one reading crossed 5 NTU</div>
+          </div>
+        </div>
+        <div class="foot r" id="s17-foot">Turbidity in NTU, July to September only &mdash; just under 3&times; the upstream average in the same month, in the same city.</div>
+      </section>
+
+      <!-- ============ 27 — the honest column — 154s to 163s ============ -->
+      <section id="s27" class="scene clip" data-start="154" data-duration="9">
+        <div class="kicker r" id="s27-kicker">What it refuses to claim</div>
+        <h2 class="h2 r" id="s27-title" style="margin-top: 10px">A single node. A straight line. A nine-day-old file.</h2>
+        <div class="cards">
+          <div class="c card r" id="s27-c1"><div class="t">One data node</div><div class="d">2 vCPU, 6 GB. There is no distribution clause in the DDL, so the benchmark wins are columnar scan, pushdown, pre-aggregation and the result cache &mdash; not MPP.</div></div>
+          <div class="c card r" id="s27-c2"><div class="t">A straight line</div><div class="d">The forecast is a 12-month slope extended linearly. It is not a model, and the .ics description says so in the event body.</div></div>
+          <div class="c card r" id="s27-c3"><div class="t">A nine-day-old file</div><div class="d">The data lags today by nine days. The Trust page prints 2026-10-22 instead of printing the word &ldquo;live&rdquo;.</div></div>
+          <div class="c card r" id="s27-c4"><div class="t">104 regex patterns</div><div class="d">Not a neural network, and unable to learn. That is the point: a ward officer can read the rule that fired on their own complaint.</div></div>
+          <div class="c card r" id="s27-c5"><div class="t">Generated, not measured</div><div class="d">The 288,768 readings come from 30_generate_readings.sql &mdash; deterministic and synthetic. The pipeline is real; the water is not.</div></div>
+          <div class="c card r" id="s27-c6"><div class="t">One machine, one process</div><div class="d">FastAPI, the Vite build and Exasol Personal on one laptop. Nothing here was tested under load or across nodes.</div></div>
+        </div>
+        <div class="foot r" id="s27-foot">Every caveat in this video is printed inside the product &mdash; not in a slide.</div>
+      </section>
+
+      <!-- ============ 15 — wordmark — 163s to 175s ============ -->
+      <section id="s15" class="scene clip" data-start="163" data-duration="12">
+        <div class="big r" id="s15-l1">No cloud. No keys. No credits.</div>
+        <div class="big r" id="s15-l2" style="margin-top: 10px"><span class="two">One laptop that already knows.</span></div>
+        <div class="offline r" id="s15-off">
+          <span class="chip chip--ok">served from cache</span>
+          <span class="small">close the lid on the demo and it still opens &mdash; the last payload survives a dead network</span>
+        </div>
+        <div class="free r" id="s15-free"><b>Exasol Personal · FastAPI · React · Chart.js</b> — no API keys, no credits, no cloud bill.</div>
+        <div class="end">
+          <div class="mark r" id="s15-mark">WARD<span class="tld">Q</span></div>
+          <div class="sig r" id="s15-sig"><div>Ward-Level Water Quality &amp; Complaint Triage</div><div>ExaThon India 2026 · Civic / Sustainability</div></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============ audio ============ -->
+    <audio
+      id="music"
+      data-start="0"
+      data-duration="164"
+      data-track-index="10"
+      data-volume="0.55"
+      data-timeline-role="music"
+      src="assets/music/happy-beats-business-moves-vol-1-by-ende-dot-app.mp3"
+      data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0},{&quot;t&quot;:1.6,&quot;v&quot;:0.55},{&quot;t&quot;:156,&quot;v&quot;:0.55},{&quot;t&quot;:159.5,&quot;v&quot;:0.3},{&quot;t&quot;:163.9,&quot;v&quot;:0}]}]}"
+    ></audio>
+
+    <audio
+      id="music-2"
+      data-start="160.4"
+      data-duration="14.6"
+      data-track-index="26"
+      data-volume="0.5"
+      data-timeline-role="music"
+      src="assets/music/happy-beats-business-moves-vol-12-by-ende-dot-app.mp3"
+      data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0},{&quot;t&quot;:2.0,&quot;v&quot;:0.5},{&quot;t&quot;:10.6,&quot;v&quot;:0.5},{&quot;t&quot;:12.2,&quot;v&quot;:0.24},{&quot;t&quot;:14.6,&quot;v&quot;:0}]}]}"
+    ></audio>
+
+    <audio id="sfx-01" data-start="0.15" data-duration="0.18" data-track-index="11" data-volume="0.80" src="assets/sfx/impactSoft_medium_001.ogg"></audio>
+    <audio id="sfx-02" data-start="6.0" data-duration="0.15" data-track-index="12" data-volume="0.72" src="assets/sfx/impactSoft_medium_004.ogg"></audio>
+    <audio id="sfx-03" data-start="15.2" data-duration="0.12" data-track-index="13" data-volume="0.60" src="assets/sfx/bong_001.ogg"></audio>
+    <audio id="sfx-04" data-start="24.0" data-duration="0.18" data-track-index="14" data-volume="0.74" src="assets/sfx/impactSoft_medium_001.ogg"></audio>
+    <audio id="sfx-05" data-start="40.0" data-duration="0.15" data-track-index="15" data-volume="0.74" src="assets/sfx/impactSoft_medium_004.ogg"></audio>
+    <audio id="sfx-06" data-start="53.0" data-duration="0.18" data-track-index="16" data-volume="0.66" src="assets/sfx/impactSoft_medium_001.ogg"></audio>
+    <audio id="sfx-07" data-start="66.0" data-duration="0.06" data-track-index="17" data-volume="0.80" src="assets/sfx/click2.ogg"></audio>
+    <audio id="sfx-08" data-start="73.0" data-duration="0.12" data-track-index="18" data-volume="0.54" src="assets/sfx/bong_001.ogg"></audio>
+    <audio id="sfx-09" data-start="84.0" data-duration="0.12" data-track-index="19" data-volume="0.54" src="assets/sfx/bong_001.ogg"></audio>
+    <audio id="sfx-10" data-start="93.4" data-duration="0.06" data-track-index="20" data-volume="0.66" src="assets/sfx/click2.ogg"></audio>
+    <audio id="sfx-11" data-start="104.2" data-duration="0.06" data-track-index="21" data-volume="0.66" src="assets/sfx/click2.ogg"></audio>
+    <audio id="sfx-12" data-start="113.0" data-duration="0.15" data-track-index="22" data-volume="0.74" src="assets/sfx/impactSoft_medium_004.ogg"></audio>
+    <audio id="sfx-13" data-start="125.0" data-duration="0.18" data-track-index="23" data-volume="0.66" src="assets/sfx/impactSoft_medium_001.ogg"></audio>
+    <audio id="sfx-14" data-start="136.0" data-duration="0.15" data-track-index="24" data-volume="0.74" src="assets/sfx/impactSoft_medium_004.ogg"></audio>
+    <audio id="sfx-15" data-start="144.2" data-duration="0.54" data-track-index="25" data-volume="0.86" src="assets/sfx/impactSoft_heavy_003.ogg"></audio>
+    <audio id="sfx-16" data-start="154.0" data-duration="0.12" data-track-index="26" data-volume="0.58" src="assets/sfx/bong_001.ogg"></audio>
+    <audio id="sfx-17" data-start="163.3" data-duration="0.54" data-track-index="27" data-volume="0.94" src="assets/sfx/impactSoft_heavy_003.ogg"></audio>
+
+    <script>
+      (function () {
+        var MONTHS = ['2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04','2026-05','2026-06','2026-07','2026-08','2026-09','2026-10'];
+        var RISK = [
+          [47.8,48.9,64.5,66.4,52.3,65.0,66.1,50.6,56.8,49.2,56.5,86.5,48.5,54.6,52.8,49.5,52.8,59.5,68.2,55.1,64.8,51.2,51.0,67.8],
+          [39.2,37.6,45.7,46.8,48.9,43.6,46.6,39.5,50.7,39.5,46.2,58.4,49.3,49.4,46.0,41.6,44.8,43.7,46.2,42.7,48.0,42.0,41.4,45.7],
+          [37.4,41.2,44.0,46.5,46.4,40.2,44.4,41.1,41.8,44.4,48.9,51.5,43.8,42.7,44.5,37.5,44.3,44.0,42.5,45.3,44.3,46.5,43.4,45.3],
+          [39.6,39.6,40.2,44.8,40.9,42.6,41.5,43.8,45.0,40.6,50.6,48.8,46.4,48.1,45.1,40.5,41.2,41.8,41.7,44.0,42.7,40.0,41.5,37.5],
+          [38.5,40.7,42.2,34.8,47.6,38.7,39.9,41.8,47.8,42.0,45.6,40.9,41.5,44.1,42.0,40.0,42.1,41.5,41.3,46.4,41.0,39.9,37.2,40.2],
+          [35.9,39.0,44.2,43.2,43.9,41.1,41.6,41.3,43.0,43.3,47.2,37.7,43.1,45.1,45.8,42.1,40.9,41.5,44.7,51.2,39.0,45.0,43.0,41.2],
+          [37.0,37.8,42.3,52.1,47.9,38.6,43.7,43.0,49.3,41.5,45.5,41.9,46.8,44.0,43.0,39.9,45.1,40.8,42.1,49.9,43.8,42.3,42.7,42.4],
+          [38.4,43.6,44.0,50.4,48.8,45.5,46.3,43.2,50.6,41.3,40.0,47.0,40.9,45.3,44.9,41.8,44.9,46.0,46.4,41.3,44.1,47.3,39.9,45.8],
+          [37.8,44.8,43.3,48.5,43.3,43.9,42.9,45.5,44.2,40.2,47.3,46.9,40.6,39.6,40.9,40.9,47.3,44.8,49.6,46.4,52.0,47.8,42.6,44.9],
+          [48.1,53.8,63.5,70.9,49.3,65.7,68.3,49.0,52.1,52.6,58.4,68.3,51.9,58.2,50.6,50.7,59.6,66.9,70.3,53.5,67.8,55.0,48.5,67.9],
+          [39.3,39.3,44.9,48.7,48.0,44.8,43.3,37.1,48.6,41.1,46.3,51.1,42.2,46.0,39.5,43.3,45.7,43.2,48.4,40.8,50.2,44.6,41.3,47.1],
+          [38.9,42.7,53.5,53.4,48.4,50.4,53.1,43.9,44.5,43.6,47.3,50.3,37.8,48.6,44.5,39.5,43.3,50.4,54.1,43.8,59.6,44.3,45.3,51.8],
+          [46.4,46.4,67.8,73.5,54.6,68.4,67.6,52.1,53.5,49.9,52.6,63.9,51.4,53.0,50.1,49.7,49.9,66.1,70.3,49.7,69.6,53.6,50.0,75.4]
+        ];
+        var WARD24 = [67.8,45.7,45.3,37.5,40.2,41.2,42.4,45.8,44.9,67.9,47.1,51.8,75.4];
+        var TREND = [1.45,1.65,1.77,1.78,1.66,1.48,1.26,1.05,0.92,4.78,5.30,5.49,2.14,1.63,1.75,1.79,1.70,1.52,1.29,1.08,0.93,4.05,5.28,5.46,2.80,1.58];
+        var NS = 'http://www.w3.org/2000/svg';
+        function svgEl(t, a) {
+          var e = document.createElementNS(NS, t);
+          for (var k in a) e.setAttribute(k, a[k]);
+          return e;
+        }
+        function mix(a, b, t) {
+          return 'rgb(' + Math.round(a[0] + (b[0] - a[0]) * t) + ',' + Math.round(a[1] + (b[1] - a[1]) * t) + ',' + Math.round(a[2] + (b[2] - a[2]) * t) + ')';
+        }
+        function riskColor(v) {
+          var t = Math.max(0, Math.min(1, (v - 35) / 50));
+          if (t < 0.55) return mix([20, 83, 45], [245, 158, 11], t / 0.55);
+          return mix([245, 158, 11], [239, 68, 68], (t - 0.55) / 0.45);
+        }
+
+        /* ---- heatmap ---- */
+        var hm = document.getElementById('heatmap');
+        var corner = document.createElement('div');
+        corner.className = 'hm-month';
+        corner.setAttribute('data-layout-ignore', '');
+        hm.appendChild(corner);
+        for (var w = 1; w <= 24; w++) {
+          var wh = document.createElement('div');
+          wh.className = 'hm-ward';
+          wh.setAttribute('data-layout-ignore', '');
+          wh.textContent = String(w);
+          hm.appendChild(wh);
+        }
+        var monthEls = [];
+        MONTHS.forEach(function (m, ri) {
+          var lab = document.createElement('div');
+          lab.className = 'hm-month';
+          lab.setAttribute('data-layout-ignore', '');
+          lab.textContent = m;
+          monthEls.push(lab);
+          hm.appendChild(lab);
+          for (var ci = 0; ci < 24; ci++) {
+            var cell = document.createElement('div');
+            cell.className = 'hm-cell';
+            cell.style.background = riskColor(RISK[ri][ci]);
+            hm.appendChild(cell);
+          }
+        });
+
+        /* ---- ward sparkline ---- */
+        var sp = document.getElementById('s5-svg');
+        var spts = WARD24.map(function (v, i) {
+          return [22 + i * (396 / 12), 182 - (v - 30) / 55 * 150];
+        });
+        var sd = spts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+        sp.appendChild(svgEl('path', { d: sd + ' L418 200 L22 200 Z', fill: 'rgba(239,68,68,0.16)' }));
+        var sparkPath = svgEl('path', { d: sd, fill: 'none', stroke: '#f87171', 'stroke-width': '3', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+        sp.appendChild(sparkPath);
+        spts.forEach(function (p, i) {
+          sp.appendChild(svgEl('circle', { cx: p[0], cy: p[1], r: i === 12 ? 5.5 : 2.6, fill: i === 12 ? '#fca5a5' : '#f87171' }));
+        });
+
+        /* ---- trend chart ---- */
+        var ch = document.getElementById('s6-svg');
+        var X0 = 70, X1 = 980, Y0 = 340, YMAX = 6, YS = 300 / YMAX, N = TREND.length;
+        function tx(i) { return X0 + i * ((X1 - X0) / (N - 1)); }
+        function ty(v) { return Y0 - v * YS; }
+        for (var g = 1; g <= 6; g++) {
+          ch.appendChild(svgEl('line', { x1: X0, y1: ty(g), x2: X1, y2: ty(g), stroke: 'rgba(139,160,179,0.16)', 'stroke-width': '1' }));
+          var gl = svgEl('text', { x: 34, y: ty(g) + 6, fill: '#8ba0b3', 'font-size': '16', 'font-family': 'ui-monospace, monospace' });
+          gl.textContent = g + '.0';
+          ch.appendChild(gl);
+        }
+        ch.appendChild(svgEl('rect', { x: X0, y: ty(5), width: X1 - X0 + 150, height: Y0 - ty(5), fill: 'rgba(239,68,68,0.09)' }));
+        var limitLine = svgEl('line', { x1: X0, y1: ty(5), x2: X1 + 150, y2: ty(5), stroke: 'rgba(239,68,68,0.55)', 'stroke-width': '2', 'stroke-dasharray': '10 8' });
+        ch.appendChild(limitLine);
+        var limLab = svgEl('text', { x: X0 + 14, y: ty(5) - 12, fill: '#fca5a5', 'font-size': '17', 'font-family': 'ui-monospace, monospace' });
+        limLab.textContent = '5 NTU limit';
+        ch.appendChild(limLab);
+        ch.appendChild(svgEl('line', { x1: X0, y1: Y0, x2: X1, y2: Y0, stroke: 'rgba(139,160,179,0.45)', 'stroke-width': '1' }));
+        var td = TREND.map(function (v, i) { return (i ? 'L' : 'M') + tx(i).toFixed(1) + ' ' + ty(v).toFixed(1); }).join(' ');
+        var trendPath = svgEl('path', { d: td, fill: 'none', stroke: '#38bdf8', 'stroke-width': '3.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+        ch.appendChild(trendPath);
+        var projPaths = [
+          svgEl('path', { d: 'M' + tx(N - 1).toFixed(1) + ' ' + ty(TREND[N - 1]).toFixed(1) + ' L1130 ' + ty(2.643).toFixed(1), fill: 'none', stroke: '#818cf8', 'stroke-width': '3', 'stroke-dasharray': '9 8' }),
+          svgEl('path', { d: 'M' + tx(N - 1) + ' ' + ty(1.58) + ' L1130 ' + ty(2.993), fill: 'none', stroke: 'rgba(129,140,248,0.42)', 'stroke-width': '2', 'stroke-dasharray': '6 8' }),
+          svgEl('path', { d: 'M' + tx(N - 1) + ' ' + ty(1.58) + ' L1130 ' + ty(2.293), fill: 'none', stroke: 'rgba(129,140,248,0.42)', 'stroke-width': '2', 'stroke-dasharray': '6 8' })
+        ];
+        projPaths.forEach(function (p) { ch.appendChild(p); });
+        var markers = [];
+        TREND.forEach(function (v, i) {
+          if (v > 5) markers.push(svgEl('circle', { cx: tx(i), cy: ty(v), r: '6', fill: '#ef4444', stroke: '#0f1720', 'stroke-width': '2' }));
+        });
+        markers.forEach(function (m) { ch.appendChild(m); });
+        ['2025-10', '2026-04', '2026-10'].forEach(function (lbl, i) {
+          var t = svgEl('text', { x: tx([0, 12, 25][i]), y: 372, fill: '#8ba0b3', 'font-size': '15', 'font-family': 'ui-monospace, monospace', 'text-anchor': i === 2 ? 'end' : 'start' });
+          t.textContent = lbl;
+          ch.appendChild(t);
+        });
+        var projLab = svgEl('text', { x: 1130, y: 186, fill: '#c7d2fe', 'font-size': '15', 'font-family': 'ui-monospace, monospace', 'text-anchor': 'end' });
+        projLab.textContent = '90-day 2.643';
+        ch.appendChild(projLab);
+
+        /* ---- timeline ---- */
+        var tl = gsap.timeline({ paused: true });
+        function R(sel, t, dy, d) {
+          tl.fromTo(sel, { opacity: 0, y: dy === undefined ? 24 : dy }, { opacity: 1, y: 0, duration: d || 0.6, ease: 'power3.out' }, t);
+        }
+        function bars(sel, t, step) {
+          document.querySelectorAll(sel).forEach(function (el, i) {
+            var wv = parseFloat(el.getAttribute('data-w')) / 100;
+            tl.fromTo(el, { scaleX: 0 }, { scaleX: wv, duration: 0.9, ease: 'power3.out' }, t + i * step);
+          });
+        }
+
+        gsap.set(['#s4-knob'], { xPercent: -50 });
+        document.querySelectorAll('#s11 .knob').forEach(function (k) { gsap.set(k, { xPercent: -50 }); });
+
+        tl.fromTo('#progress-fill', { scaleX: 0 }, { scaleX: 1, duration: 175, ease: 'none' }, 0);
+        tl.fromTo('#glow', { opacity: 0.5 }, { opacity: 1, duration: 6, yoyo: true, repeat: 13, ease: 'sine.inOut' }, 0);
+
+        /* 1 — the inversion */
+        var len = document.getElementById('s1-line').getTotalLength();
+        gsap.set('#s1-line', { strokeDasharray: len, strokeDashoffset: len });
+        tl.to('#s1-line', { strokeDashoffset: 0, duration: 2.4, ease: 'power2.inOut' }, 0.17);
+        tl.fromTo('#s1-area', { opacity: 0 }, { opacity: 1, duration: 1.37, ease: 'sine.out' }, 0.6);
+        R('#s1-l1', 0.3, 18, 0.77);
+        R('#s1-l2', 2.49, 18, 0.77);
+        R('#s1-foot', 4.03, 14, 0.6);
+
+        /* 2 — title */
+        R('#s2-badge', 6.09, 16, 0.55);
+        R('#s2-title', 6.41, 22, 0.8);
+        R('#s2-lede', 7.04, 16);
+        R('#s2-lede2', 7.49, 16);
+        ['#s2-s1', '#s2-s2', '#s2-s3', '#s2-s4'].forEach(function (s, i) { R(s, 8.12 + i * 0.2, 20, 0.55); });
+
+        /* 3 — the stack */
+        R('#s3-kicker', 15.08, 14, 0.5);
+        R('#s3-title', 15.33, 18, 0.7);
+        ['#s3-r1', '#s3-r2', '#s3-r3', '#s3-r4'].forEach(function (s, i) { R(s, 15.78 + i * 0.16, 20, 0.55); });
+        R('#s3-pipe-h', 17.21, 14, 0.5);
+        for (var pi = 1; pi <= 9; pi++) R('#s3-p' + pi, 17.41 + (pi - 1) * 0.1, 16, 0.45);
+        R('#s3-foot', 18.76, 14, 0.6);
+        for (var mi = 1; mi <= 4; mi++) R('#s3-m' + mi, 19.17 + (mi - 1) * 0.14, 18, 0.5);
+
+        /* 4 — dashboard */
+        R('#s4-kicker', 24.15, 14, 0.5);
+        for (var ki = 1; ki <= 5; ki++) R('#s4-k' + ki, 24.5 + (ki - 1) * 0.17, 20, 0.5);
+        R('#s4-worst', 26.4, 24, 0.65);
+        R('#s4-replay', 26.8, 24, 0.65);
+        R('#s4-hmcard', 27.2, 26, 0.7);
+        R('#s4-payload', 27.55, 24, 0.6);
+        tl.fromTo('#s4 .hm-cell', { opacity: 0.06 }, { opacity: 1, duration: 0.5, stagger: { amount: 1.5, grid: [13, 24], from: 'start', axis: 'x' } }, 27.6);
+        var hcells = hm.querySelectorAll('.hm-cell');
+        var rowCells = [];
+        for (var rr = 0; rr < 13; rr++) rowCells.push(Array.prototype.slice.call(hcells, rr * 24, rr * 24 + 24));
+        tl.fromTo('#s4-fill', { width: '0%' }, { width: '100%', duration: 7.4, ease: 'none' }, 30);
+        var tr4 = document.querySelector('#s4 .track');
+        var kx4 = tr4 ? Math.max(0, tr4.getBoundingClientRect().width - 22) : 300;
+        tl.fromTo('#s4-knob', { x: 0 }, { x: kx4, duration: 7.4, ease: 'none' }, 30);
+        var monthEl = document.getElementById('s4-month');
+        var sweptRow = -1;
+        var sweep = { p: 0 };
+        tl.to(sweep, { p: 1, duration: 7.4, ease: 'none', onUpdate: function () {
+          var i = Math.min(12, Math.floor(sweep.p * 13));
+          monthEl.textContent = MONTHS[i];
+          if (i === sweptRow) return;
+          if (sweptRow >= 0) {
+            rowCells[sweptRow].forEach(function (c) { c.style.outline = '0 solid transparent'; });
+            monthEls[sweptRow].style.color = '#8ba0b3';
+            monthEls[sweptRow].style.fontWeight = '';
+          }
+          rowCells[i].forEach(function (c) { c.style.outline = '2px solid rgba(56,189,248,0.9)'; c.style.outlineOffset = '1px'; });
+          monthEls[i].style.color = '#38bdf8';
+          monthEls[i].style.fontWeight = '700';
+          sweptRow = i;
+        } }, 30);
+
+        /* 5 — case file */
+        R('#s5-kicker', 40.1, 14, 0.5);
+        R('#s5-title', 40.4, 18, 0.7);
+        R('#s5-who', 40.95, 26, 0.65);
+        R('#s5-bars', 41.4, 26, 0.65);
+        bars('#s5 .bar-fill', 41.95, 0.18);
+        R('#s5-spark', 42.55, 26, 0.6);
+        var slen = sparkPath.getTotalLength();
+        gsap.set(sparkPath, { strokeDasharray: slen, strokeDashoffset: slen });
+        tl.to(sparkPath, { strokeDashoffset: 0, duration: 1.7, ease: 'power2.inOut' }, 43);
+        R('#s5-fc', 44.1, 22, 0.6);
+        R('#s5-next', 44.65, 22, 0.6);
+        R('#s5-next .btn', 45.4, 14, 0.5);
+
+        /* 6 — trend */
+        R('#s6-kicker', 53.09, 14, 0.5);
+        R('#s6-title', 53.36, 18, 0.7);
+        R('#s6-chart', 53.86, 26, 0.7);
+        var tlen = trendPath.getTotalLength();
+        gsap.set(trendPath, { strokeDasharray: tlen, strokeDashoffset: tlen });
+        tl.to(trendPath, { strokeDashoffset: 0, duration: 2.4, ease: 'power1.inOut' }, 54.23);
+        tl.fromTo(markers, { scale: 0, opacity: 0, transformOrigin: '50% 50%' }, { scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(2)', stagger: 0.16 }, 56.64);
+        tl.fromTo(projPaths, { opacity: 0 }, { opacity: 1, duration: 0.7, stagger: 0.2 }, 57.73);
+        ['#s6-n1', '#s6-n2', '#s6-n3', '#s6-n4'].forEach(function (s, i) { R(s, 58.45 + i * 0.18, 18, 0.55); });
+
+        /* 7 — anomalies to SQL */
+        R('#s7-kicker', 63.1, 14, 0.5);
+        R('#s7-title', 63.4, 18, 0.7);
+        for (var ri = 1; ri <= 5; ri++) R('#s7-r' + ri, 63.9 + (ri - 1) * 0.14, 16, 0.45);
+        tl.fromTo('#cursor', { opacity: 0, scale: 1.6 }, { opacity: 1, scale: 1, duration: 0.35, ease: 'power2.out', transformOrigin: '0% 0%' }, 65.9);
+        tl.to('#cursor', { scale: 0.82, duration: 0.12, yoyo: true, repeat: 1 }, 66.75);
+        tl.fromTo('#drawer', { opacity: 0, y: 44 }, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, 66.95);
+        for (var f7 = 1; f7 <= 3; f7++) R('#s7-f' + f7, 68.9 + (f7 - 1) * 0.14, 16, 0.5);
+
+        /* 8 — disagreements */
+        R('#s8-kicker', 73.1, 14, 0.5);
+        R('#s8-title', 73.4, 18, 0.7);
+        ['#s8-v1', '#s8-v2', '#s8-v3'].forEach(function (s, i) { R(s, 73.9 + i * 0.2, 22, 0.6); });
+        for (var r8 = 1; r8 <= 4; r8++) R('#s8-r' + r8, 75.2 + (r8 - 1) * 0.15, 14, 0.45);
+        R('#s8-foot', 76.8, 12, 0.6);
+        ['#s8-m1', '#s8-m2', '#s8-m3'].forEach(function (s, i) { R(s, 77.6 + i * 0.14, 18, 0.6); });
+
+        /* 9 — complaints */
+        R('#s9-kicker', 84.09, 14, 0.5);
+        R('#s9-title', 84.36, 18, 0.7);
+        R('#s9-field', 84.81, 18, 0.55);
+        tl.to('#s9-caret', { opacity: 0, duration: 0.42, repeat: 11, yoyo: true, ease: 'none' }, 85.44);
+        ['#s9-m1', '#s9-m2', '#s9-m3'].forEach(function (s, i) { R(s, 85.71 + i * 1.2, 24, 0.65); });
+        R('#s9-foot', 89.04, 14, 0.6);
+        R('#s9-rule', 89.31, 14, 0.5);
+
+        /* 10 — ingest */
+        R('#s10-kicker', 93.09, 14, 0.5);
+        R('#s10-title', 93.36, 18, 0.7);
+        R('#s10-drop', 93.8, 26, 0.65);
+        for (var t10 = 1; t10 <= 6; t10++) R('#s10-t' + t10, 94.29 + (t10 - 1) * 0.12, 16, 0.45);
+        R('#s10-mix', 95.49, 26, 0.6);
+        bars('#s10 .mix-fill', 95.89, 0.16);
+        R('#s10-stamp', 97.18, 14, 0.6);
+        R('#s10-alt', 97.62, 14, 0.6);
+
+        /* 11 — leaderboard + simulator */
+        R('#s11-kicker', 101.1, 14, 0.5);
+        R('#s11-title', 101.4, 18, 0.7);
+        R('#s11-lb', 101.9, 26, 0.6);
+        for (var l11 = 1; l11 <= 5; l11++) R('#s11-l' + l11, 102.35 + (l11 - 1) * 0.14, 16, 0.5);
+        bars('#s11 .lb-row .fill', 102.5, 0.14);
+        R('#s11-sim', 104, 26, 0.6);
+        for (var s11 = 1; s11 <= 4; s11++) R('#s11-sl' + s11, 104.4 + (s11 - 1) * 0.18, 18, 0.5);
+        document.querySelectorAll('#s11 .slider').forEach(function (sl, i) {
+          var wv = parseFloat(sl.querySelector('.fill').getAttribute('data-w'));
+          var ktw = sl.querySelector('.track').getBoundingClientRect().width;
+          tl.fromTo(sl.querySelector('.fill'), { width: '0%' }, { width: wv + '%', duration: 0.85, ease: 'power3.out' }, 104.6 + i * 0.18);
+          tl.fromTo(sl.querySelector('.knob'), { x: 0 }, { x: Math.max(0, ktw * wv / 100 - 11), duration: 0.85, ease: 'power3.out' }, 104.6 + i * 0.18);
+        });
+        R('#s11-formula', 106, 16, 0.55);
+        R('#s11-drift', 106.9, 14, 0.55);
+
+        /* 12 — brief */
+        R('#s12-kicker', 113.1, 14, 0.5);
+        R('#s12-title', 113.4, 18, 0.7);
+        R('#s12-a1', 113.9, 22, 0.6);
+        R('#s12-a2', 114.6, 22, 0.6);
+        R('#s12-a3', 115.3, 22, 0.6);
+        R('#s12-p1', 116.6, 22, 0.6);
+        R('#s12-p2', 117.1, 22, 0.6);
+        for (var x = 1; x <= 4; x++) R('#s12-x' + x, 117.9 + (x - 1) * 0.13, 12, 0.45);
+        R('#s12-md', 119.4, 20, 0.6);
+        for (var xl = 1; xl <= 4; xl++) R('#s12-md .ln:nth-child(' + xl + ')', 119.7 + (xl - 1) * 0.12, 10, 0.4);
+
+        /* 13 — trust */
+        R('#s13-kicker', 125.1, 14, 0.5);
+        R('#s13-title', 125.4, 18, 0.7);
+        for (var k13 = 1; k13 <= 4; k13++) R('#s13-k' + k13, 125.9 + (k13 - 1) * 0.18, 18, 0.5);
+        for (var r13 = 1; r13 <= 5; r13++) R('#s13-r' + r13, 127.5 + (r13 - 1) * 0.15, 14, 0.45);
+        for (var x13 = 1; x13 <= 4; x13++) R('#s13-x' + x13, 129 + (x13 - 1) * 0.12, 12, 0.45);
+        for (var f13 = 1; f13 <= 3; f13++) R('#s13-f' + f13, 130.6 + (f13 - 1) * 0.13, 16, 0.5);
+        R('#s13-foot', 131.9, 14, 0.6);
+
+        /* 14 — benchmark */
+        R('#s14-kicker', 136.09, 14, 0.5);
+        R('#s14-title', 136.36, 18, 0.7);
+        ['#s14-g1', '#s14-g2', '#s14-g3'].forEach(function (s, i) { R(s, 136.8 + i * 0.26, 22, 0.6); });
+        bars('#s14 .pair .fill', 136.98, 0.1);
+        R('#s14-caveat', 138.93, 14, 0.6);
+
+        /* 17 — monsoon */
+        R('#s17-kicker', 144.1, 14, 0.5);
+        R('#s17-title', 144.4, 18, 0.7);
+        R('#s17-down', 144.9, 22, 0.6);
+        R('#s17-up', 145.05, 22, 0.6);
+        bars('#s17 .fill', 145.35, 0.1);
+        R('#s17-foot', 148.6, 14, 0.6);
+
+        /* 27 — the honest column */
+        R('#s27-kicker', 154.1, 14, 0.5);
+        R('#s27-title', 154.4, 18, 0.7);
+        for (var c27 = 1; c27 <= 6; c27++) R('#s27-c' + c27, 154.9 + (c27 - 1) * 0.16, 22, 0.6);
+        R('#s27-foot', 157.6, 14, 0.6);
+
+        /* 15 — outro */
+        R('#s15-l1', 163.21, 22, 0.75);
+        R('#s15-l2', 164.2, 22, 0.75);
+        R('#s15-off', 165.49, 16, 0.6);
+        R('#s15-free', 166.6, 16, 0.6);
+        R('#s15-mark', 168.31, 26, 0.8);
+        R('#s15-sig', 168.91, 16, 0.6);
+        tl.to('#s15 .end', { opacity: 0.9, duration: 4, ease: 'sine.inOut' }, 170.54);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines['main'] = tl;
+      })();
+    </script>
+  </body>
+</html>

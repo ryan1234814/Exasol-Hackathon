@@ -1,10 +1,16 @@
 import React, { useState } from 'react'
 import { useGet, fmt } from './_shared'
+import ExportCsvButton from '../components/ExportCsvButton'
 import SqlDrawer from '../components/SqlDrawer'
 
 const PARAMS = ['', 'TURBIDITY', 'CHLORINE', 'COLIFORM', 'PH']
 
-export default function Anomalies() {
+const CSV_COLUMNS = [
+  'WARD_ID', 'WARD_NAME', 'PARAM_NAME', 'PARAM_CODE', 'Z_SCORE', 'BREACH_DAYS',
+  'CONSECUTIVE_RUN', 'SLOPE_12M', 'SEVERITY', 'DOWNSTREAM', 'SAMPLE_MONTH',
+]
+
+export default function Anomalies({ lang = 'en' }) {
   const [wardId, setWardId] = useState('')
   const [param, setParam] = useState('')
   const q = `?limit=200${wardId ? `&ward_id=${wardId}` : ''}${param ? `&param=${param}` : ''}`
@@ -20,6 +26,12 @@ export default function Anomalies() {
             <span key={p || 'all'} className={`chip${param === p ? ' active' : ''}`} onClick={() => setParam(p)}>{p || 'ALL'}</span>
           ))}
         </div>
+        <ExportCsvButton
+          filename={`wardq-anomalies-${data?.month || 'latest'}${param ? `-${param}` : ''}.csv`}
+          rows={data?.rows}
+          columns={CSV_COLUMNS}
+          lang={lang}
+        />
       </div>
 
       {error && <div className="error">anomalies failed: {error}</div>}

@@ -130,5 +130,20 @@ SELECT CHECK_NAME, EXPECTED, ACTUAL, CHECK_RESULT FROM (
            CAST(COUNT(*) AS VARCHAR(40)),
            CASE WHEN COUNT(*) > 0 THEN 'PASS' ELSE 'FAIL' END
     FROM WARDQ.COMPLAINT_SUMMARY
+
+    -- ---- trust layer: the gaps must be countable --------------------------
+    UNION ALL
+    SELECT '16 data quality view populated', '>= 1000 ward-param-months',
+           CAST(COUNT(*) AS VARCHAR(40)),
+           CASE WHEN COUNT(*) >= 1000 THEN 'PASS' ELSE 'FAIL' END
+    FROM WARDQ.V_DATA_QUALITY
+
+    UNION ALL
+    -- A scorecard that reports 100% completeness on data with planted gaps
+    -- would be lying, so the gap itself is the assertion.
+    SELECT '17 missing results are measured', '> 0 missing readings',
+           CAST(SUM(N_MISSING) AS VARCHAR(40)),
+           CASE WHEN SUM(N_MISSING) > 0 THEN 'PASS' ELSE 'FAIL' END
+    FROM WARDQ.V_DATA_QUALITY
 )
 ORDER BY CHECK_NAME;

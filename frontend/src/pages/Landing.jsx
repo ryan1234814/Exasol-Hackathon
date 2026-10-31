@@ -21,6 +21,11 @@ const FEATURES = [
     desc: '300k+ samples scanned in milliseconds inside a local Exasol columnar engine. Nothing leaves the laptop.',
   },
   {
+    icon: '⛓️',
+    title: 'Traceable to SQL',
+    desc: 'Every figure names the file behind it, opens that SQL in place, and copies the command that reproduces it. The Trust tab also shows how much of the raw data survived to be counted.',
+  },
+  {
     icon: '🔒',
     title: 'Free Forever',
     desc: 'Exasol Personal + an open-source stack. No API keys, no credits, no cloud — MIT-licensed throughout.',
@@ -97,6 +102,13 @@ export default function Landing({ onEnter }) {
             Every number on screen traces back to a SQL statement you can inspect and re-run,
             and the complaint classifier is a regex rule table, not a neural network — you can
             see exactly which rule fired on every message.
+          </p>
+          <p>
+            You can also take it with you: export any table as CSV, download the 90-day
+            breach forecast as an <strong>.ics calendar</strong> with a 7-day alarm, subscribe
+            to the morning brief as an <strong>Atom feed</strong>, read that brief in
+            <strong>हिन्दी</strong>, and install the whole dashboard so it still opens with the
+            network off.
           </p>
         </div>
       </section>

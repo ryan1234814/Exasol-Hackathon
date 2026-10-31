@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { getJSON, IS_MOCK } from './api'
 import { useRoute, navigate, goHome } from './router'
 import { useTheme } from './theme'
+import { LANGS, t, useLang } from './i18n'
+import { TABS_META } from './tabs'
 import CommandPalette from './components/CommandPalette'
 import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
@@ -13,31 +15,50 @@ import Complaints from './pages/Complaints'
 import Leaderboard from './pages/Leaderboard'
 import Simulator from './pages/Simulator'
 import Briefing from './pages/Briefing'
+import Trust from './pages/Trust'
 import Ingest from './pages/Ingest'
 import BenchmarkPage from './pages/BenchmarkPage'
 
-// Tab id, label, component. The ids are also the hash routes (#/ward/12), so
-// they are part of the demo's URL surface — rename one and old links die.
-const TABS = [
-  ['dashboard', 'Dashboard', Dashboard],
-  ['ward', 'Wards', WardDossier],
-  ['trend', 'Trend', Trend],
-  ['anomalies', 'Anomalies', Anomalies],
-  ['disagreements', 'Disagreements', Disagreements],
-  ['complaints', 'Complaints', Complaints],
-  ['leaderboard', 'Leaderboard', Leaderboard],
-  ['simulator', 'Simulator', Simulator],
-  ['brief', 'Briefing', Briefing],
-  ['ingest', 'Ingest', Ingest],
-  ['benchmark', 'Benchmark', BenchmarkPage],
-]
+// The ids and the order come from tabs.js, which router.js also reads — one
+// registry, so a new tab cannot be added to only half the app. This map holds
+// only the components, keyed by the same ids.
+const COMPONENTS = {
+  dashboard: Dashboard,
+  ward: WardDossier,
+  trend: Trend,
+  anomalies: Anomalies,
+  disagreements: Disagreements,
+  complaints: Complaints,
+  leaderboard: Leaderboard,
+  simulator: Simulator,
+  brief: Briefing,
+  trust: Trust,
+  ingest: Ingest,
+  benchmark: BenchmarkPage,
+}
 
-// Only the id and label travel to the palette; it must not need the components.
-const PALETTE_TABS = TABS.map(([id, label]) => [id, label])
+// Offline is worth a badge rather than silence: a stale cached view and a hung
+// request look identical to someone standing in front of the screen.
+function useOnline() {
+  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
+  useEffect(() => {
+    const up = () => setOnline(true)
+    const down = () => setOnline(false)
+    window.addEventListener('online', up)
+    window.addEventListener('offline', down)
+    return () => {
+      window.removeEventListener('online', up)
+      window.removeEventListener('offline', down)
+    }
+  }, [])
+  return online
+}
 
 export default function App() {
   const route = useRoute()
   const [theme, toggleTheme] = useTheme()
+  const [lang, pickLang] = useLang()
+  const online = useOnline()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [summary, setSummary] = useState(null)
   const [health, setHealth] = useState(null)
@@ -68,13 +89,19 @@ export default function App() {
   const openWard = useCallback((id) => navigate('ward', id), [])
   const openTrend = useCallback((id) => navigate('trend', id), [])
 
+  // Labels are resolved once per language change, so the palette and the tab
+  // strip cannot disagree.
+  const tabs = TABS_META.map((meta) => ({ ...meta, label: t(lang, meta.labelKey) }))
+
   if (route.view === 'landing') {
     return <Landing onEnter={() => navigate('dashboard')} />
   }
 
-  const Active = (TABS.find((t) => t[0] === route.tab) || TABS[0])[2]
+  const Active = COMPONENTS[route.tab] || COMPONENTS.dashboard
   const common = {
     summary,
+    lang,
+    onPickLang: pickLang,
     wardId: route.wardId,
     onOpenWard: openWard,
     onOpenTrend: openTrend,
@@ -92,21 +119,44 @@ export default function App() {
           </div>
         </div>
         <div className="topbar__tools">
-          <button className="action" onClick={goHome} title="Back to the landing page">← Home</button>
+          <button className="action" onClick={goHome} title={t(lang, 'topbar.homeTitle')}>
+            {t(lang, 'topbar.home')}
+          </button>
           <button
             className="action"
             onClick={() => setPaletteOpen(true)}
-            title="Search everything (Ctrl/Cmd-K)"
+            title={t(lang, 'topbar.searchTitle')}
           >
-            Search <kbd>⌘K</kbd>
+            {t(lang, 'topbar.search')} <kbd>⌘K</kbd>
           </button>
           <button
             className="action"
             onClick={toggleTheme}
-            title="Switch between the dark and light palettes"
+            title={t(lang, 'topbar.themeTitle')}
           >
-            {theme === 'dark' ? 'Light' : 'Dark'} theme
+            {theme === 'dark' ? 'Light' : 'Dark'} {t(lang, 'topbar.theme')}
           </button>
+          <div className="chips" title={t(lang, 'topbar.language')}>
+            {LANGS.map((option) => (
+              <span
+                key={option.id}
+                role="button"
+                tabIndex={0}
+                className={`chip${lang === option.id ? ' active' : ''}`}
+                onClick={() => pickLang(option.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickLang(option.id) }
+                }}
+              >
+                {option.label}
+              </span>
+            ))}
+          </div>
+          {!online && (
+            <span className="mock-badge" title="Serving the last cached API responses from the service worker">
+              {t(lang, 'offline.badge')}
+            </span>
+          )}
           {IS_MOCK
             ? <span className="mock-badge" title="VITE_MOCK=1 — rendering from devMock, DB not required">mock data</span>
             : <span className="db-badge">db: {health?.database || '…'}</span>}
@@ -116,14 +166,14 @@ export default function App() {
       {err && !IS_MOCK && <div className="error" style={{ margin: '10px 0' }}>backend unreachable: {err}</div>}
 
       <nav className="tabs">
-        {TABS.map(([id, label]) => (
+        {tabs.map((tab) => (
           <button
-            key={id}
-            className={`tab${route.tab === id ? ' active' : ''}`}
-            onClick={() => navigate(id)}
-            aria-current={route.tab === id ? 'page' : undefined}
+            key={tab.id}
+            className={`tab${route.tab === tab.id ? ' active' : ''}`}
+            onClick={() => navigate(tab.id)}
+            aria-current={route.tab === tab.id ? 'page' : undefined}
           >
-            {label}
+            {tab.label}
           </button>
         ))}
       </nav>
@@ -140,7 +190,7 @@ export default function App() {
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         onPick={pick}
-        tabs={PALETTE_TABS}
+        tabs={tabs.map((tab) => [tab.id, tab.label])}
       />
     </div>
   )

@@ -1,10 +1,16 @@
 import React, { useState } from 'react'
 import { useGet, fmt } from './_shared'
+import ExportCsvButton from '../components/ExportCsvButton'
 import SqlDrawer from '../components/SqlDrawer'
 
 const CATS = ['', 'contamination', 'leakage', 'pressure', 'other']
 
-export default function Complaints({ onOpenWard }) {
+const CSV_COLUMNS = [
+  'COMPLAINT_ID', 'WARD_ID', 'WARD_NAME', 'RECEIVED_TS', 'CATEGORY', 'SEVERITY',
+  'CONFIDENCE', 'RAW_TEXT', 'RULE_EVIDENCE', 'RULE_VERSION', 'CHANNEL',
+]
+
+export default function Complaints({ onOpenWard, lang = 'en' }) {
   const [category, setCategory] = useState('')
   const [q, setQ] = useState('')
   const qs = `?limit=100${category ? `&category=${category}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`
@@ -21,6 +27,12 @@ export default function Complaints({ onOpenWard }) {
               <span key={c || 'all'} className={`chip${category === c ? ' active' : ''}`} onClick={() => setCategory(c)}>{c || 'ALL'}</span>
             ))}
           </div>
+          <ExportCsvButton
+            filename={`wardq-complaints${category ? `-${category}` : ''}.csv`}
+            rows={data?.rows}
+            columns={CSV_COLUMNS}
+            lang={lang}
+          />
         </div>
 
         {data?.category_mix?.length > 0 && (

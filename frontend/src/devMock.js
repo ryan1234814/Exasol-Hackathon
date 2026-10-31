@@ -397,7 +397,41 @@ function num(value, digits = 1) {
 
 // The morning brief, mirrored from backend/brief.py: the same three slots, the
 // same priority order, the same KIND values, the same markdown skeleton.
-function brief({ month } = {}) {
+//
+// `lang` is applied at the end, over the finished English brief, so the mock can
+// never show a different set of numbers in Hindi than in English — the same
+// invariant test_brief.py pins on the real backend.
+const MOCK_HI_TITLE = {
+  rank: '{ward} से शुरुआत करें',
+  crossing: '{ward} · {param} की योजना बनाएँ',
+  instrument: '{ward} में सेंसर जाँचें',
+  complaints: '{ward} की उच्च-गंभीरता शिकायतें निपटाएँ',
+}
+
+// The crossing title also names the parameter, which the action carries only in
+// its DETAIL. Rather than parse English prose, the mock takes the first
+// whitespace-separated token of DETAIL and drops the `{param} · ` fragment entirely if
+// it cannot, so the Hindi title is never left with a dangling separator.
+function localise(actions, lang) {
+  if (lang !== 'hi') return actions
+  return actions.map((a) => {
+    const template = MOCK_HI_TITLE[a.KIND]
+    if (!template) return a
+    const ward = a.WARD_NAME || ''
+    let title = template
+    if (a.KIND === 'crossing') {
+      const param = String(a.DETAIL || '').split(/[\s.]/)[0]
+      title = /^[A-Z]{3,}$/.test(param)
+        ? template.split('{ward}').join(ward).split('{param}').join(param)
+        : `${ward} की योजना बनाएँ`
+      return { ...a, TITLE: title }
+    }
+    return { ...a, TITLE: title.split('{ward}').join(ward) }
+  })
+}
+
+function brief({ month, lang } = {}) {
+  const code = lang === 'hi' ? 'hi' : 'en'
   const m = month || LATEST_MONTH
   const ws = wards()
   const ranked = leaderboard({ limit: 6 }).rows
@@ -489,16 +523,32 @@ function brief({ month } = {}) {
     'data as of 2026-10-23 20:15:04',
   ].filter(Boolean).join('; ') + '.'
 
+  const localised = localise(actions, code)
+  const headings = code === 'hi' ? {
+    ACTIONS: 'आज ये तीन काम करें',
+    WATCHLIST: 'निगरानी सूची',
+    MARKDOWN: 'डेटा और सीमाएँ',
+  } : {
+    ACTIONS: 'Do these three things today',
+    WATCHLIST: 'Watchlist',
+    MARKDOWN: 'The brief as markdown (what Copy and Download contain)',
+  }
+  const mdHead = code === 'hi'
+    ? ['# सुबह की रिपोर्ट — ' + m, '## आज ये तीन काम करें', '## निगरानी सूची', '## डेटा और सीमाएँ',
+      '| वार्ड | जोखिम | सबसे खराब पैरामीटर | उच्च-गंभीरता शिकायतें |']
+    : ['# Morning brief — ' + m, '## Do these three things today', '## Watchlist', '## Data and limits',
+      '| Ward | Risk | Worst parameter | High-severity complaints |']
+
   const markdown = [
-    `# Morning brief — ${m}`, '', headline, '',
-    '## Do these three things today',
-    ...actions.map((a) => `${a.N}. **${a.TITLE}** — ${a.DETAIL}`), '',
-    '## Watchlist', '',
-    '| Ward | Risk | Worst parameter | High-severity complaints |',
+    mdHead[0], '', headline, '',
+    mdHead[1],
+    ...localised.map((a) => `${a.N}. **${a.TITLE}** — ${a.DETAIL}`), '',
+    mdHead[2], '',
+    mdHead[4],
     '|---|---|---|---|',
     ...watchlist.map((w) => `| ${w.WARD_NAME} | ${num(w.RISK_SCORE)} | ${w.WORST_PARAM} | ${num(w.N_HIGH_SEV, 0)} |`),
     '',
-    '## Data and limits', '',
+    mdHead[3], '',
     `- Schema \`WARDQ\` · month \`${m}\` · data as of \`2026-10-23 20:15:04\``,
     `- ${num(counts.sample_rows, 0)} readings · ${num(counts.complaint_rows, 0)} complaints · ${num(counts.wards, 0)} wards`,
     '- Single-node local Exasol Personal VM (2 vCPU / 6 GB); forecast is a 12-month linear slope, not a model.',
@@ -506,10 +556,181 @@ function brief({ month } = {}) {
   ].join('\n') + '\n'
 
   return {
-    MONTH: m, HEADLINE: headline, ACTIONS: actions, WATCHLIST: watchlist, COUNTS: counts,
+    MONTH: m, LANG: code, HEADLINE: headline, ACTIONS: localised, WATCHLIST: watchlist, COUNTS: counts,
+    HEADINGS: headings,
     DATA_AS_OF: '2026-10-23 20:15:04', DATA_SOURCE: 'db/60_materialize.sql',
-    NOTE: 'Composed from SQL results by backend/brief.py — no model, no network.',
+    NOTE: code === 'hi'
+      ? 'SQL परिणामों से backend/brief.py द्वारा बनी — कोई मॉडल नहीं, कोई नेटवर्क नहीं।'
+      : 'Composed from SQL results by backend/brief.py — no model, no network.',
     MARKDOWN: markdown, query_ms: 21.7,
+  }
+}
+
+// -- data quality (the Trust tab) ---------------------------------------------
+// Same discipline as the rest of this file: the numbers are derived from the
+// ward list and the parameter order, not typed in, so mock mode cannot show a
+// completeness figure the live view would contradict. The seed below plants the
+// two defects the generator actually plants — unrecorded results and
+// sensor-only (unverified) readings — which is why IMPLAUSIBLE stays zero.
+const QUALITY_SEED = {
+  // param: [missing per month, share of usable readings the lab verified]
+  TURBIDITY: [0.031, 0.18],
+  CHLORINE: [0.022, 0.21],
+  COLIFORM: [0.014, 0.29],
+  PH: [0.009, 0.12],
+}
+
+const PARAM_UNITS = { TURBIDITY: 'NTU', CHLORINE: 'mg/L', COLIFORM: 'CFU/100mL', PH: 'pH' }
+
+function dataQualityRows(month) {
+  const m = month || LATEST_MONTH
+  const ws = wards()
+  const rows = []
+  for (const w of ws) {
+    for (const code of PARAM_ORDER) {
+      const [missingShare, labShare] = QUALITY_SEED[code]
+      // 12 readings a month is what the generator emits; the ward index skews
+      // the defect rate so the worst-cell table has a clear head.
+      const skew = 1 + ((w.WARD_ID % 5) * 0.22)
+      const readings = 120
+      const missing = Math.round(readings * missingShare * skew)
+      const usable = readings - missing
+      const lab = Math.round(usable * labShare)
+      rows.push({
+        SAMPLE_MONTH: m, WARD_ID: w.WARD_ID, WARD_NAME: w.WARD_NAME,
+        PARAM_CODE: code, UNIT: PARAM_UNITS[code],
+        N_READINGS: readings, N_MISSING: missing,
+        N_LAB_VERIFIED: lab, N_SENSOR_ONLY: usable - lab, N_IMPLAUSIBLE: 0,
+        FIRST_DATE: `${m}-01`, LAST_DATE: `${m}-23`,
+      })
+    }
+  }
+  return rows
+}
+
+function bandFor(ratio) {
+  if (ratio == null) return 'unknown'
+  if (ratio >= 0.98) return 'good'
+  if (ratio >= 0.95) return 'watch'
+  return 'poor'
+}
+
+// Mirrors backend/quality.py's arithmetic closely enough that the page's bands,
+// findings and totals are the same shape. The grading itself is not duplicated:
+// this exists only so VITE_MOCK=1 renders without the backend.
+function dataQuality({ month } = {}) {
+  const m = month || LATEST_MONTH
+  const rows = dataQualityRows(m)
+  const sum = (key) => rows.reduce((acc, r) => acc + Number(r[key] || 0), 0)
+  const readings = sum('N_READINGS')
+  const missing = sum('N_MISSING')
+  const lab = sum('N_LAB_VERIFIED')
+  const usable = readings - missing
+  const pct = (part, whole) => (whole ? Math.round((1000 * part) / whole) / 10 : null)
+
+  const byParam = PARAM_ORDER.map((code) => {
+    const own = rows.filter((r) => r.PARAM_CODE === code)
+    const r = own.reduce((acc, x) => acc + x.N_READINGS, 0)
+    const mi = own.reduce((acc, x) => acc + x.N_MISSING, 0)
+    const la = own.reduce((acc, x) => acc + x.N_LAB_VERIFIED, 0)
+    const so = own.reduce((acc, x) => acc + x.N_SENSOR_ONLY, 0)
+    const us = r - mi
+    return {
+      PARAM_CODE: code, UNIT: PARAM_UNITS[code], READINGS: r, MISSING: mi,
+      LAB_VERIFIED: la, SENSOR_ONLY: so, IMPLAUSIBLE: 0, CELLS: own.length,
+      COMPLETE_PCT: pct(us, r), UNUSABLE_PCT: pct(mi, r), LAB_PCT: pct(la, us),
+      BAND: bandFor(r ? us / r : null), LAB_BAND: bandFor(us ? la / us : null),
+      LAST_DATE: `${m}-23`,
+    }
+  })
+
+  const findings = []
+  for (const param of byParam) {
+    if (param.BAND === 'poor' || param.BAND === 'watch') {
+      findings.push({
+        SEVERITY: param.BAND,
+        TITLE: `${param.PARAM_CODE} completeness is ${param.COMPLETE_PCT}%`,
+        DETAIL: `${param.MISSING} of ${param.READINGS} readings have no recorded result, leaving `
+          + `${param.COMPLETE_PCT}% usable. Monthly means include the surviving readings only.`,
+        WARD_ID: null, PARAM_CODE: param.PARAM_CODE,
+      })
+    }
+    if (param.LAB_PCT != null && param.LAB_PCT < 25) {
+      findings.push({
+        SEVERITY: 'watch',
+        TITLE: `only ${param.LAB_PCT}% of ${param.PARAM_CODE} is lab-verified`,
+        DETAIL: `${param.LAB_VERIFIED} of ${param.READINGS - param.MISSING} usable readings were `
+          + `confirmed by a laboratory; the remaining ${param.SENSOR_ONLY} rest on an unverified `
+          + 'probe. A breach here needs a confirmation sample before it is escalated.',
+        WARD_ID: null, PARAM_CODE: param.PARAM_CODE,
+      })
+    }
+  }
+  findings.push({
+    SEVERITY: 'good', TITLE: 'no implausible values',
+    DETAIL: `0 of ${readings} readings are outside the physically possible range, so nothing on `
+      + 'this page is a parsing artefact.',
+    WARD_ID: null, PARAM_CODE: null,
+  })
+
+  const worstCells = rows
+    .filter((r) => r.N_MISSING > 0)
+    .sort((a, b) => b.N_MISSING - a.N_MISSING)
+    .slice(0, 5)
+    .map((r) => ({ ...r, COMPLETE_PCT: pct(r.N_READINGS - r.N_MISSING, r.N_READINGS) }))
+
+  return {
+    month: m,
+    summary: {
+      OVERALL: {
+        READINGS: readings, MISSING: missing, USABLE: usable, LAB_VERIFIED: lab,
+        SENSOR_ONLY: usable - lab, IMPLAUSIBLE: 0,
+        COMPLETE_PCT: pct(usable, readings), USABLE_PCT: pct(usable, readings),
+        UNUSABLE_PCT: pct(missing, readings), LAB_PCT: pct(lab, usable),
+        BAND: bandFor(readings ? usable / readings : null),
+        CELLS: rows.length, PARAMS: byParam.length, LAST_DATE: `${m}-23`, STALENESS_DAYS: 0,
+      },
+      BY_PARAM: byParam, WORST_CELLS: worstCells, FINDINGS: findings,
+      BANDS: { GOOD: 0.98, WATCH: 0.95, LAB_WATCH: 0.25 },
+      NOTE: 'Completeness and lab coverage are counted in SQL (V_DATA_QUALITY); the bands and the '
+        + 'sentences are decided in backend/quality.py so they can be tested without a database.',
+    },
+    findings,
+    rows,
+    query_ms: 27.4,
+  }
+}
+
+// Mirrors backend/app.py's LINEAGE table. Kept in the same order and derived with
+// the same file paths, so the mock page reads like the real one.
+const LINEAGE_ROWS = [
+  ['/api/summary', 'latest_risk', 'WARD_MONTH_RISK, WARD, LOAD_RUN', "header strip, scale counts and 'data as of'", 'db/sql/latest_risk.sql'],
+  ['/api/wards', 'latest_risk', 'WARD, WARD_MONTH_RISK', 'one row per ward with its current risk and components', 'db/sql/latest_risk.sql'],
+  ['/api/wards/{id}/trend', 'anomaly_window', 'WARD_DAILY, ANOMALY_EVENT, PARAMETER_LIMITS', 'server-side bucketing to <=500 points over the daily aggregate', 'db/40_anomaly_window.sql'],
+  ['/api/anomalies', 'anomaly_window', 'ANOMALY_EVENT, WARD, PARAMETER_LIMITS', 'flagged ward x parameter x month rows, worst first', 'db/40_anomaly_window.sql'],
+  ['/api/leaderboard', 'deteriorating_wards', 'WARD_MONTH_RISK, WARD, COMPLAINT_SUMMARY', 'the wards to visit first this month', 'db/sql/deteriorating_wards.sql'],
+  ['/api/heatmap', 'ward_month_matrix', 'WARD_MONTH_RISK, WARD', 'one payload for the replay slider, ~600 cells', 'db/sql/ward_month_matrix.sql'],
+  ['/api/wards/{id}/forecast', 'forecast_eta', 'V_WARD_FORECAST', 'breach ETA per parameter; branching lives in backend/forecast.py', 'db/sql/forecast_eta.sql'],
+  ['/api/forecast.ics', 'forecast_eta', 'V_WARD_FORECAST', 'same rows as an importable calendar, built by backend/calendar_feed.py', 'db/sql/forecast_eta.sql'],
+  ['/api/disagreements', 'sensor_vs_lab', 'V_LAB_VS_SENSOR, COMPLAINT_SUMMARY', 'probe breaches vs lab-confirmed ones, with a verdict', 'db/sql/sensor_vs_lab.sql'],
+  ['/api/brief', 'morning_brief', 'WARD_MONTH_RISK, COMPLAINT_SUMMARY, V_WARD_FORECAST, V_LAB_VS_SENSOR', 'three actions in a fixed priority order; composed by backend/brief.py', 'db/sql/morning_brief.sql'],
+  ['/feed/brief.xml', 'morning_brief', 'same as /api/brief', 'the same brief as Atom, so the feed cannot disagree with the page', 'db/sql/morning_brief.sql'],
+  ['/api/complaints', 'complaint_category_mix', 'COMPLAINT, WARD', 'triage queue, LIMIT/OFFSET paged, q bound as a parameter', 'db/sql/complaint_category_mix.sql'],
+  ['/api/data-quality', 'data_quality', 'V_DATA_QUALITY', 'completeness and lab coverage; bands live in backend/quality.py', 'db/sql/data_quality.sql'],
+  ['/api/benchmark', 'latest_risk', 'BENCHMARK_RESULTS', 'measured timings; every speed claim on screen comes from here', 'db/sql/latest_risk.sql'],
+]
+
+function lineage() {
+  const rows = LINEAGE_ROWS.map(([ENDPOINT, SQL_STEP, TABLES, NOTE, FILE]) => ({
+    ENDPOINT, SQL_STEP, TABLES, NOTE, FILE,
+    COMMAND: `backend/.venv/bin/python scripts/run_sql.py ${FILE}`,
+  }))
+  return {
+    count: rows.length,
+    rows,
+    steps: [...new Set(rows.map((r) => r.SQL_STEP))].sort(),
+    note: 'One row per read endpoint, naming the saved query behind it. Each step resolves through '
+      + '/api/sql/{step} and is a single statement you can paste into exakit sql.',
   }
 }
 
@@ -607,6 +828,7 @@ const SQL_SNIPPETS = {
   sensor_vs_lab: `-- db/sql/sensor_vs_lab.sql — instrument or water?\nSELECT lv.WARD_NAME, lv.PARAM_CODE, lv.SENSOR_BREACHES, lv.LAB_BREACHES,\n       CASE WHEN lv.LAB_BREACHES > 0 THEN 'lab_confirmed'\n            WHEN lv.SENSOR_BREACHES > 0 THEN 'instrument_suspect'\n            ELSE 'consistent' END AS VERDICT\nFROM WARDQ.V_LAB_VS_SENSOR lv ORDER BY lv.SENSOR_BREACHES DESC LIMIT 25;`,
   ward_month_matrix: `-- db/sql/ward_month_matrix.sql — the 600-cell month x ward matrix\nSELECT SAMPLE_MONTH, WARD_ID, RISK_SCORE, WORST_PARAM, RANK_IN_MONTH\nFROM WARDQ.WARD_MONTH_RISK\nORDER BY SAMPLE_MONTH DESC, RISK_SCORE DESC LIMIT 600;`,
   morning_brief: `-- db/sql/morning_brief.sql — the brief's inputs\nSELECT r.RANK_IN_MONTH, r.WARD_ID, r.RISK_SCORE, r.WORST_PARAM, r.Z_COMPONENT,\n       r.BREACH_COMPONENT, r.SLOPE_COMPONENT, r.COMPLAINT_COMP\nFROM WARDQ.WARD_MONTH_RISK r\nWHERE r.SAMPLE_MONTH = (SELECT MAX(SAMPLE_MONTH) FROM WARDQ.WARD_MONTH_RISK)\nORDER BY r.RANK_IN_MONTH LIMIT 10;`,
+  data_quality: `-- db/sql/data_quality.sql — the Trust tab's inputs\nSELECT SAMPLE_MONTH, WARD_ID, WARD_NAME, PARAM_CODE, UNIT,\n       N_READINGS, N_MISSING, N_LAB_VERIFIED, N_SENSOR_ONLY, N_IMPLAUSIBLE\nFROM WARDQ.V_DATA_QUALITY\nWHERE N_MISSING > 0\nORDER BY N_MISSING DESC LIMIT 200;`,
 }
 
 // Where each snippet actually lives, so the drawer header is not a lie.
@@ -615,6 +837,7 @@ const SQL_FILES = {
   sensor_vs_lab: 'db/sql/sensor_vs_lab.sql',
   ward_month_matrix: 'db/sql/ward_month_matrix.sql',
   morning_brief: 'db/sql/morning_brief.sql',
+  data_quality: 'db/sql/data_quality.sql',
   latest_risk: 'db/sql/latest_risk.sql',
   monsoon_turbidity: 'db/sql/monsoon_turbidity.sql',
   outbreak_detection: 'db/sql/outbreak_detection.sql',
@@ -655,7 +878,9 @@ export function mockResponse(path) {
       param: q.get('param') || undefined, limit: Number(q.get('limit') || 100),
     })
   }
-  if (bare === '/api/brief') return brief({ month: q.get('month') || undefined })
+  if (bare === '/api/brief') return brief({ month: q.get('month') || undefined, lang: q.get('lang') || 'en' })
+  if (bare === '/api/data-quality') return dataQuality({ month: q.get('month') || undefined })
+  if (bare === '/api/lineage') return lineage()
   if (bare === '/api/anomalies') {
     return anomalies({ month: q.get('month') || undefined, wardId: q.get('ward_id') || undefined, param: q.get('param') || undefined, limit: Number(q.get('limit') || 200) })
   }

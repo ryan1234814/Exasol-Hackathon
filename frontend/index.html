@@ -4,6 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ward Water Quality &amp; Complaint Triage</title>
+    <!-- Installable dashboard: the manifest only matters once the service worker
+         in src/main.jsx registers, and that is gated to production builds. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0f1720" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <!-- Announced to feed readers so the morning brief is subscribable from the
+         page itself, with no account and no delivery service. -->
+    <link
+      rel="alternate"
+      type="application/atom+xml"
+      title="WardQ morning brief"
+      href="/feed/brief.xml"
+    />
   </head>
   <body>
     <div id="root"></div>
