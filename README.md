@@ -1,3 +1,5 @@
+**Pitch deck:** [`pitch-deck/WARDQ-Pitch-Deck.pdf`](pitch-deck/WARDQ-Pitch-Deck.pdf) (16 slides, 4.3 MB) · **Demo video:** [`brag-output-2026-10-31-1430/brag.mp4`](brag-output-2026-10-31-1430/brag.mp4) (2:55, 1080p, 18 MB)
+
 # WARDQ — Ward-Level Water Quality & Complaint Triage
 
 **ExaThon India 2026 · Civic / Sustainability track**
@@ -9,9 +11,8 @@ the illness spike confirms it.
 `Exasol Personal` · `Python 3.11 / FastAPI` · `React 18 + Vite + Chart.js` ·
 `24 wards` · `288,768 readings` · `15,063 complaints` · `213 tests` · `MIT`
 
-**Pitch deck:** [WARDQ-Pitch-Deck.pdf](pitch-deck/WARDQ-Pitch-Deck.pdf) — 16 slides,
-slide 2 is the problem statement. **Cover:** [docs/COVER.md](docs/COVER.md) — the short
-written version of the same argument.
+Slide 2 of the deck is the problem statement; [docs/COVER.md](docs/COVER.md) is the
+same argument written out in one page.
 
 ---
 
